@@ -1,0 +1,133 @@
+<div class="page-container p-4 space-y-6">
+    <!-- Sticky Section Tabs -->
+    <div class="w-full bg-white z-50 shadow-md sticky top-20">
+        <div class=" flex overflow-x-auto gap-2 px-8 py-8 items-center">
+            <button *ngFor="let sec of sections" pButton [label]="sec | titlecase" class="p-button-sm flex-shrink-0"
+                [ngClass]="{'p-button-info': activeSection === sec}" (click)="scrollTo(sec)">
+            </button>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-4" id="overview">
+        <h2 class="text-2xl font-bold text-[#202a5a]">Application Details</h2>
+        <button pButton icon="pi pi-pencil" label="Edit Application" class="p-button-rounded p-button-info mt-2 md:mt-0"
+            *ngIf="isDraft">
+        </button>
+    </div>
+
+    <!-- Reference & Category -->
+    <p-card class="shadow-md p-4 flex justify-between items-center">
+        <div>
+            <p class="text-gray-500 text-sm mb-1">Reference Number</p>
+            <h3 class="text-lg font-semibold">{{ request.reqReferenceNumber }}</h3>
+        </div>
+        <p-tag severity="info" [value]="request?.metas?.category?.name || '-'"
+            styleClass="px-4 py-1 rounded-full"></p-tag>
+    </p-card>
+
+    <!-- Horizontal QA Workflow Timeline -->
+    <p-card class="shadow-md p-4 overflow-x-auto" id="timeline">
+        <h3 class="text-lg font-semibold mb-3 text-[#202a5a]">Application Workflow (QA View)</h3>
+        <div class="flex space-x-6 min-w-max">
+            <div *ngFor="let s of stages"
+                class="bg-white shadow rounded-lg p-4 flex flex-col items-center min-w-[180px]">
+                <div class="w-12 h-12 rounded-full flex items-center justify-center text-white mb-2"
+                    [ngStyle]="{'background-color': s.color}">
+                    <i [class]="s.icon + ' text-lg'"></i>
+                </div>
+                <span class="font-semibold text-center">{{ s.name }}</span>
+                <span class="text-sm text-gray-600 text-center">{{ s.status }}</span>
+                <span *ngIf="s.username" class="text-xs text-gray-500 mt-1">By: {{ s.username }}</span>
+                <span *ngIf="s.role" class="text-xs text-gray-400">Role: {{ s.role }}</span>
+
+                <!-- QA Action Buttons -->
+                <div *ngIf="s.status.toLowerCase() === 'pending'" class="mt-2 flex space-x-2">
+                    <button pButton label="Approve" class="p-button-success p-button-sm"
+                        (click)="approveStage(s)"></button>
+                    <button pButton label="Reject" class="p-button-danger p-button-sm"
+                        (click)="rejectStage(s)"></button>
+                </div>
+            </div>
+        </div>
+    </p-card>
+
+    <!-- Personal Information -->
+    <p-card class="shadow-md p-4" id="personal">
+        <h3 class="text-lg font-semibold mb-3 text-[#202a5a]">Personal Information</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div *ngFor="let field of personalFields">
+                <p><strong>{{ field.label }}:</strong> {{ field.value }}</p>
+            </div>
+        </div>
+    </p-card>
+
+    <!-- Passport Information -->
+    <p-card class="shadow-md p-4" id="passport">
+        <h3 class="text-lg font-semibold mb-3 text-[#202a5a]">Passport Details</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div *ngFor="let field of passportFields">
+                <p><strong>{{ field.label }}:</strong> {{ field.value }}</p>
+            </div>
+        </div>
+    </p-card>
+
+    <!-- Contact Information -->
+    <p-card class="shadow-md p-4" id="contact">
+        <h3 class="text-lg font-semibold mb-3 text-[#202a5a]">Contact Information</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div *ngFor="let field of contactFields">
+                <p><strong>{{ field.label }}:</strong> {{ field.value }}</p>
+            </div>
+        </div>
+    </p-card>
+
+    <!-- Education -->
+    <p-card class="shadow-md p-4" id="education">
+        <h3 class="text-lg font-semibold mb-3 text-[#202a5a]">Education</h3>
+        <div *ngFor="let edu of request.employmentAndEducation.educations">
+            <p><strong>Qualification:</strong> {{ edu.qualification }}</p>
+            <p><strong>University:</strong> {{ edu.university }}</p>
+            <p><strong>Country:</strong> {{ edu.eduCountry }}</p>
+            <hr class="my-2">
+        </div>
+    </p-card>
+
+    <!-- Family Members -->
+    <p-card class="shadow-md p-4" id="family" *ngIf="request.ResidencyAndTravelAndFamily.familyMembers?.length">
+        <h3 class="text-lg font-semibold mb-3 text-[#202a5a]">Family Members</h3>
+        <div *ngFor="let family of request.ResidencyAndTravelAndFamily.familyMembers"
+            class="bg-gray-50 p-3 rounded mb-2">
+            <p><strong>Name:</strong> {{ family.name }}</p>
+            <p><strong>Relation:</strong> {{ family.relation }}</p>
+            <p><strong>DOB:</strong> {{ family.dob | date }}</p>
+            <p><strong>Profession:</strong> {{ family.profession }}</p>
+        </div>
+    </p-card>
+
+    <!-- Documents -->
+    <p-card class="shadow-md p-4" id="documents">
+        <h3 class="text-lg font-semibold mb-3 text-[#202a5a]">Uploaded Documents</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div *ngFor="let doc of request.documents" class="bg-gray-50 p-3 rounded flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <i class="pi pi-file text-[#202a5a]"></i>
+                    <span>{{ formatDocumentName(doc.type) }}</span>
+                </div>
+                <div class="flex gap-1">
+                    <button pButton icon="pi pi-eye" class="p-button-sm p-button-text"
+                        (click)="openPreview(doc)"></button>
+                    <button pButton icon="pi pi-download" class="p-button-sm p-button-text"
+                        (click)="downloadDocument(doc)"></button>
+                </div>
+            </div>
+        </div>
+    </p-card>
+
+</div>
+
+<!-- Document Preview Dialog -->
+<p-dialog header="{{ previewName }}" [(visible)]="previewVisible" [style]="{width: '50vw'}" modal>
+    <img *ngIf="previewUrl" [src]="previewUrl | safeUrl" alt="Preview" class="w-full h-auto rounded">
+    <p *ngIf="!previewUrl" class="text-center text-gray-500">Preview not available</p>
+</p-dialog>

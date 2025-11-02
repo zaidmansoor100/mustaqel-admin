@@ -1,0 +1,107 @@
+<p-toolbar styleClass="mb-4">
+    <ng-template #start>
+        <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="navigateToCreate()" />
+
+        <p-button label="Delete" icon="pi pi-trash" outlined severity="secondary" (onClick)="deleteSelectedRequests()"
+            [disabled]="!selectedRequests || !selectedRequests.length" />
+    </ng-template>
+
+    <ng-template #end>
+        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+    </ng-template>
+</p-toolbar>
+
+<p-table #dt [value]="requests" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
+    (onLazyLoad)="loadRequests($event)" [globalFilterFields]="['requestId', 'applicantName', 'status']"
+    [(selection)]="selectedRequests" dataKey="id" [rowHover]="true"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords}" [rowsPerPageOptions]="[10, 20, 30]">
+
+    <ng-template #caption>
+        <div class="flex items-center justify-between">
+            <h5 class="m-0">
+                {{ 'Manage ' + (catSlug == 'tal' ? 'Talent' : catSlug == 'ent' ? 'Entrepreneur' : 'Investor') + '
+                Requests' }}
+            </h5>
+            <p-iconfield>
+                <p-inputicon styleClass="pi pi-search"></p-inputicon>
+                <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search..." />
+            </p-iconfield>
+        </div>
+    </ng-template>
+
+    <ng-template #header>
+        <tr>
+            <th><p-tableHeaderCheckbox /></th>
+            <th *ngFor="let col of cols" [pSortableColumn]="col.field">
+                {{ col.header }}
+            </th>
+            <th></th>
+        </tr>
+    </ng-template>
+
+    <ng-template #body let-request>
+        <tr>
+            <td><p-tableCheckbox [value]="request"></p-tableCheckbox></td>
+            <td>{{ request.reqReferenceNumber || 'Assign after submission' }}</td>
+            <td>{{ request.nameEn || 'N/A'}}</td>
+            <td>{{ request.metas?.category?.name || 'N/A' }}</td>
+            <td>{{ request.metas?.sector?.name || 'N/A'}}</td>
+            <td>{{ request.metas?.activity?.name || 'N/A' }}</td>
+            <td>{{ request.created_at | date:'short' }}</td>
+
+            <td>
+                <p-tag [value]="request.statuses?.application?.status || 'N/A'"
+                    [severity]="getSeverity(request.statuses?.application?.status)"></p-tag>
+            </td>
+
+
+            <td style="white-space: nowrap;">
+                <p-button icon="pi pi-eye" class="mr-2"
+                    *ngIf="request.statuses?.application?.status && request.statuses?.application?.status.toLowerCase() !== 'draft'"
+                    [rounded]="true" [outlined]="true" (click)="navigateToView(request.id)" />
+
+                <p-button icon="pi pi-pencil" class="mr-2"
+                    *ngIf="request.statuses?.application?.status && request.statuses?.application?.status.toLowerCase() !== 'draft'"
+                    [rounded]="true" [outlined]="true" (click)="openStatusDialog(request)" />
+
+                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
+                    (click)="deleteRequest(request)" />
+            </td>
+        </tr>
+    </ng-template>
+
+    <ng-template #emptymessage>
+        <tr>
+            <td colspan="9">No requests found.</td>
+        </tr>
+    </ng-template>
+
+</p-table>
+
+<p-dialog header="Update Application Status" [(visible)]="statusDialogVisible" [modal]="true"
+    [style]="{ width: '400px' }">
+    <ng-template #content>
+        <div class="grid grid-col gap-6">
+            <div class="mb-4">
+                <label for="status" class="block font-bold mb-3">Status</label>
+                <p-select appendTo="body" [options]="statusOptions" [(ngModel)]="selectedStatus"
+                    placeholder="Select Status" [filter]="true" optionLabel="label" optionValue="value" class="w-full"
+                    inputId="status">
+                </p-select>
+            </div>
+
+            <div class="mb-4">
+                <label for="reason" class="block font-bold mb-3">Reason</label>
+                <textarea pInputTextarea rows="4" [(ngModel)]="statusReason" placeholder="Enter reason" class="w-full"
+                    inputId="reason"></textarea>
+            </div>
+        </div>
+    </ng-template>
+
+    <ng-template #footer>
+        <p-button label="Cancel" icon="pi pi-times" text (click)="statusDialogVisible=false"/>
+        <p-button label="Update" icon="pi pi-check"  (click)="updateRequestStatus()"/>
+    </ng-template>
+</p-dialog>
+
+<p-confirmdialog [style]="{ width: '450px' }"></p-confirmdialog>

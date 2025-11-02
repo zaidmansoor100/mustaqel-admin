@@ -1,0 +1,103 @@
+<p-toolbar styleClass="mb-6">
+    <ng-template #start>
+        <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="openNew()" />
+        <p-button severity="secondary" label="Delete" icon="pi pi-trash" outlined (onClick)="deleteSelectedSectors()"
+            [disabled]="!selectedSectors || !selectedSectors.length" />
+    </ng-template>
+
+    <ng-template #end>
+        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+    </ng-template>
+</p-toolbar>
+
+<p-table [value]="sectors" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
+    (onLazyLoad)="loadSectors($event)" [globalFilterFields]="['name', 'nameAr', 'status']"
+    [tableStyle]="{ 'min-width': '75rem' }" [(selection)]="selectedSectors" [rowHover]="true" dataKey="id"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} sectors" [showCurrentPageReport]="true"
+    [rowsPerPageOptions]="[10, 20, 30]">
+
+    <ng-template #caption>
+        <div class="flex items-center justify-between">
+            <h5 class="m-0">Manage Sectors</h5>
+            <p-iconfield>
+                <p-inputicon styleClass="pi pi-search" />
+                <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search..." />
+            </p-iconfield>
+        </div>
+    </ng-template>
+
+    <ng-template #header>
+        <tr>
+            <th><p-tableHeaderCheckbox /></th>
+            <th *ngFor="let col of cols" [pSortableColumn]="col.field">{{ col.header }}</th>
+            <th></th>
+        </tr>
+    </ng-template>
+
+    <ng-template #body let-sector>
+        <tr>
+            <td><p-tableCheckbox [value]="sector" /></td>
+            <td>{{ sector.id }}</td>
+            <td>{{ sector.name }}</td>
+            <td>{{ sector.nameAr }}</td>
+            <td>
+                <ng-container *ngIf="sector.categories?.length > 0; else noCat">
+                    <p-tag *ngFor="let cat of sector.categories" severity="info" class="mr-1 mb-1" [value]="cat.name">
+                    </p-tag>
+                </ng-container>
+                <ng-template #noCat>
+                    <span>No Categories</span>
+                </ng-template>
+            </td>
+            <td>{{ sector.created_at | date:'short' }}</td>
+            <td>{{ sector.updated_at | date:'short' }}</td>
+            <td>
+                <p-tag [severity]="sector.status === 1 ? 'success' : 'danger'"
+                    [value]="sector.status === 1 ? 'Active' : 'Inactive'" />
+            </td>
+            <td>
+                <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true"
+                    (click)="editSector(sector)" />
+                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
+                    (click)="deleteSector(sector)" />
+            </td>
+        </tr>
+    </ng-template>
+</p-table>
+
+<p-dialog [(visible)]="sectorDialog" [style]="{ width: '600px' }" header="sector Details" [modal]="true">
+    <ng-template #content>
+        <div class="grid grid-cols-2 gap-6" [formGroup]="sectorForm">
+            <div class="mb-4">
+                <label for="status" class="block font-bold mb-3">Select Categories</label>
+                <p-multiselect appendTo="body" [options]="categories" [filter]="true" optionLabel="name"
+                    optionValue="id" placeholder="Categories" [maxSelectedLabels]="3" class="w-full"
+                    formControlName="categoryIds" />
+
+            </div>
+
+            <div class="mb-4">
+                <label for="name" class="block font-bold mb-3">Name (English)</label>
+                <input class="w-full" type="text" pInputText id="name" required autofocus formControlName="name" />
+            </div>
+
+            <div class="mb-4">
+                <label for="nameAr" class="block font-bold mb-3">Name (Arabic)</label>
+                <input class="w-full" type="text" pInputText id="nameAr" required formControlName="nameAr" />
+            </div>
+
+            <div class="mb-4">
+                <label for="status" class="block font-bold mb-3">Status</label>
+                <p-select appendTo="body" [options]="status" optionLabel="name" optionValue="id" placeholder="Status"
+                    class="w-full" required formControlName="status" />
+            </div>
+        </div>
+    </ng-template>
+
+    <ng-template #footer>
+        <p-button label="Cancel" icon="pi pi-times" text (click)="hideDialog()" />
+        <p-button label="Save" icon="pi pi-check" (click)="saveSector()" />
+    </ng-template>
+</p-dialog>
+
+<p-confirmdialog [style]="{ width: '450px' }" />

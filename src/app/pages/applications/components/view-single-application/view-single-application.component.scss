@@ -1,0 +1,52 @@
+
+.page-container {
+  overflow: visible; /* NOT hidden or auto */
+}
+
+/* Horizontal workflow cards */
+.workflow-card {
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s;
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+  }
+}
+
+/* Arrow between stages */
+.workflow-card:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -20px;
+  width: 40px;
+  height: 2px;
+  background-color: #d1d5db; // Tailwind gray-300
+  transform: translateY(-50%);
+}
+
+.workflow-card:not(:last-child)::before {
+  content: '→';
+  position: absolute;
+  top: 50%;
+  right: -16px;
+  font-weight: bold;
+  color: #6b7280; // Tailwind gray-500
+  transform: translateY(-50%);
+}
+
+/* Tag custom styles */
+.category-pill {
+  background-color: #202a5a; 
+  color: white;
+  font-weight: 600;
+}
+
+/* Document cards hover */
+.document-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  }
+}
