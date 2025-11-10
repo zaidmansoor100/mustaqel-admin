@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  mustaqeel-admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    ports:
+      - "8068:80"
+    networks:
+      - admin-network
+
+networks:
+  admin-network:
+    driver: bridge
