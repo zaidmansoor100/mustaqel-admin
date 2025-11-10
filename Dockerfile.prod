@@ -11,7 +11,7 @@ COPY package*.json ./
 RUN npm install --frozen-lockfile
 
 COPY . .
-RUN npm run build --prod || { echo 'Angular build failed'; exit 1; }
+RUN npx ng build --configuration=production  || { echo 'Angular build failed'; exit 1; }
 
 # -------------------------
 # Step 2: Serve with Nginx
