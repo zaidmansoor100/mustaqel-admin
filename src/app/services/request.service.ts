@@ -110,4 +110,8 @@ export class RequestService extends CoreService {
     const additionalData = { id, key };
     return this.filePost('user/requests/document', document, additionalData);
   }
+
+  submitQVC(params: any): Observable<any> {
+    return this.post('admin/requests/qvc', params);
+  }
 }
