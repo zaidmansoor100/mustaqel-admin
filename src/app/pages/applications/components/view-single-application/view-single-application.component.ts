@@ -1,5 +1,5 @@
-import { CommonModule } from '@angular/common';
-import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { Component, ElementRef, HostListener, OnInit, OnDestroy, ViewChild, Inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
@@ -13,91 +13,183 @@ import { MessageService } from 'primeng/api';
 import { HttpClient } from '@angular/common/http';
 import { SafeUrlPipe } from '@/pipes/safe-url.pipe';
 import { RequestService } from '@/services/request.service';
+import { ImageModule } from 'primeng/image';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
+import { PdfViewerModule } from 'ng2-pdf-viewer';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Interfaces for type safety
+interface QVCCheck {
+    fieldName: string;
+    fieldPath: string;
+    status: QVCStatus;
+    commentsEn?: string;
+    commentsAr?: string;
+    corrections?: string[];
+}
+
+interface ApplicationStage {
+    key: string;
+    name: string;
+    status: string;
+    role: string;
+    username: string;
+    icon: string;
+    color: string;
+}
+
+interface FieldData {
+    label: string;
+    value: string;
+    fieldPath: string;
+    qvcStatus?: QVCStatus;
+    qvcComment?: string;
+    _targetObject?: any;
+}
+
+interface QVCField {
+    label: string;
+    fieldPath: string;
+    value?: string;
+    qvcStatus?: QVCStatus;
+    qvcComment?: string;
+    _targetObject?: any;
+}
+
+interface QVCProgress {
+    checked: number;
+    total: number;
+}
+
+type QVCStatus = 'correct' | 'wrong' | 'needs_correction' | 'approved' | 'rejected';
 
 @Component({
     selector: 'app-view-single-application',
     standalone: true,
-    imports: [
-        CommonModule, RouterModule, CardModule, ButtonModule, 
-        TagModule, DialogModule, TooltipModule, SelectModule,
-        TextareaModule, FormsModule, SafeUrlPipe
-    ],
+    imports: [ImageModule, CommonModule, RouterModule, CardModule, ButtonModule, TagModule, DialogModule, TooltipModule, SelectModule, TextareaModule, FormsModule, PdfViewerModule],
     templateUrl: './view-single-application.component.html',
     styleUrls: ['./view-single-application.component.scss']
 })
-export class ViewSingleApplicationComponent implements OnInit {
+export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
+    @ViewChild('contentContainer', { static: true }) contentContainer!: ElementRef<HTMLDivElement>;
+
+    // Component state
     request: any = null;
-    stages: any[] = [];
+    stages: ApplicationStage[] = [];
     activeSection = 'overview';
-    sections: string[] = [
-        'overview', 'personal', 'passport', 'contact', 'employment', 
-        'previousJobs', 'education', 'residences', 'otherNationalities', 
-        'countriesVisited', 'family', 'documents', 'timeline'
-    ];
+
+    readonly SECTIONS: string[] = ['overview', 'personal', 'passport', 'contact', 'employment', 'previousJobs', 'education', 'residences', 'otherNationalities', 'countriesVisited', 'family', 'documents', 'timeline'];
+
+    // Preview state
     previewVisible = false;
     previewUrl: string | null = null;
     previewName: string | null = null;
 
-    // QVC Properties
+    // PDF Viewer state
+    pdfSrc: string = '';
+    pdfLoading = false;
+    pdfError = false;
+    pdfZoom = 1.0;
+
+    // QVC state
     isQVCInProgress = false;
     showQVCDetails = false;
     showCommentDialog = false;
-    qvcChecks: any[] = [];
-    currentField: any = null;
-    currentFieldStatus: string = '';
-    currentFieldCommentEn: string = '';
-    currentFieldCommentAr: string = '';
-    currentFieldCorrections: string = '';
-    
-    // QVC Progress
-    qvcProgress = {
-        checked: 0,
-        total: 0
-    };
+    qvcChecks: QVCCheck[] = [];
+    currentField: QVCField | null = null;
+    currentFieldStatus: QVCStatus = 'correct';
+    currentFieldCommentEn = '';
+    currentFieldCommentAr = '';
+    currentFieldCorrections = '';
 
-    // Data arrays for complex objects
+    // Data arrays
     educationData: any[] = [];
     familyMembersData: any[] = [];
     previousJobsData: any[] = [];
     residencesData: any[] = [];
     otherNationalitiesData: any[] = [];
     countriesVisitedData: any[] = [];
+    personalFields: FieldData[] = [];
+    passportFields: FieldData[] = [];
+    contactFields: FieldData[] = [];
+    employmentFields: FieldData[] = [];
 
-    // Field arrays
-    personalFields: any[] = [];
-    passportFields: any[] = [];
-    contactFields: any[] = [];
-    employmentFields: any[] = [];
-
-    // QVC Status Options
-    qvcStatusOptions = [
+    // Constants
+    readonly QVC_STATUS_OPTIONS = [
         { label: 'Correct', value: 'correct' },
         { label: 'Wrong', value: 'wrong' },
         { label: 'Needs Correction', value: 'needs_correction' }
     ];
 
-    applicationStageStatus: string = 'N/A';
-    isDraft: boolean = false;
+    readonly FILE_EXTENSIONS = {
+        IMAGES: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'],
+        PDF: ['.pdf'],
+        WORD: ['.doc', '.docx'],
+        EXCEL: ['.xls', '.xlsx'],
+        POWERPOINT: ['.ppt', '.pptx']
+    };
 
-    @ViewChild('contentContainer', { static: true }) contentContainer!: ElementRef<HTMLDivElement>;
+    readonly BLOCKED_KEYS = ['PrintScreen', 'F12', 'F11', 'Pause', 'ScrollLock'];
+
+    // Application state
+    applicationStageStatus = 'N/A';
+    isDraft = false;
+    showProtectionMessage = false;
+    qvcProgress: QVCProgress = { checked: 0, total: 0 };
+
+    private destroy$ = new Subject<void>();
+    private securityEventListeners: { [key: string]: (event: any) => void } = {};
 
     constructor(
         private activatedRoute: ActivatedRoute,
         private http: HttpClient,
         private messageService: MessageService,
-        private reqService: RequestService
+        private reqService: RequestService,
+        private cdRef: ChangeDetectorRef, // Add this
+        @Inject(PLATFORM_ID) private platformId: Object
     ) {}
 
-    ngOnInit() {
+    ngOnInit(): void {
+        if (isPlatformBrowser(this.platformId)) {
+            this.configurePdfJs();
+            this.initializeComponent();
+        }
+    }
+
+    private configurePdfJs(): void {
+        // Configure PDF.js worker
+        const PDFJS_WORKER_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
+
+        try {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+            console.log('PDF.js worker configured successfully');
+        } catch (error) {
+            console.warn('PDF.js worker configuration failed:', error);
+        }
+    }
+
+    private initializeComponent(): void {
         this.request = this.activatedRoute.snapshot.data?.['singleRequestResolver']?.[0]?.['data']?.['request'] || null;
+
+        if (!this.request) {
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Unable to load application data'
+            });
+            return;
+        }
+
         this.initializeStages();
         this.buildFieldArrays();
         this.calculateQVCProgress();
+        this.initializeSecurityProtection();
     }
 
-    initializeStages() {
-        const order = ['jusour', 'vfs', 'entity', 'moci', 'application', 'mol', 'hayya'];
-        const displayNames: any = {
+    private initializeStages(): void {
+        const STAGE_ORDER = ['jusour', 'vfs', 'entity', 'moci', 'application', 'mol', 'hayya'];
+        const STAGE_DISPLAY_NAMES: { [key: string]: string } = {
             jusour: 'Jusour',
             vfs: 'VFS',
             entity: 'Entity',
@@ -109,16 +201,18 @@ export class ViewSingleApplicationComponent implements OnInit {
 
         const statusObj = this.request?.status || {};
 
-        this.stages = order.map((key) => {
+        this.stages = STAGE_ORDER.map((key) => {
             const stage = statusObj[key]?.[0] || {};
+            const status = stage?.status || 'Pending';
+
             return {
                 key,
-                name: displayNames[key] || key,
-                status: stage?.status || 'Pending',
+                name: STAGE_DISPLAY_NAMES[key] || key,
+                status,
                 role: stage?.role || '',
                 username: stage?.username || '',
-                icon: this.getIcon(stage?.status),
-                color: this.getColor(stage?.status)
+                icon: this.getStageIcon(status),
+                color: this.getStageColor(status)
             };
         });
 
@@ -127,22 +221,13 @@ export class ViewSingleApplicationComponent implements OnInit {
         this.isDraft = this.applicationStageStatus.toLowerCase() === 'draft';
     }
 
-    // Computed property to show QVC button
-    get showQVCButton(): boolean {
-        const userRole = 'admin'; // You should get this from your auth service
-        const hasQVC = !!this.request?.qvc;
-        const isPending = this.applicationStageStatus.toLowerCase() === 'pending';
-        
-        return userRole === 'admin' && !hasQVC && isPending && !this.isQVCInProgress;
-    }
-
-    buildFieldArrays() {
+    private buildFieldArrays(): void {
         const pi = this.request?.personalInfo?.applicantInfo || {};
         const passport = this.request?.personalInfo?.passportDetails || {};
         const contact = this.request?.personalInfo?.contactInfo || {};
         const employment = this.request?.employmentAndEducation?.employmentDetails || {};
 
-        // Build arrays for complex objects
+        // Initialize data arrays
         this.educationData = this.request?.employmentAndEducation?.educations || [];
         this.familyMembersData = this.request?.ResidencyAndTravelAndFamily?.familyMembers || [];
         this.previousJobsData = this.request?.employmentAndEducation?.previousJobs || [];
@@ -150,176 +235,165 @@ export class ViewSingleApplicationComponent implements OnInit {
         this.otherNationalitiesData = this.request?.ResidencyAndTravelAndFamily?.otherNationalities || [];
         this.countriesVisitedData = this.request?.ResidencyAndTravelAndFamily?.countriesVisitedLast10Years || [];
 
-        // Personal Information Fields
-        this.personalFields = [
-            { label: 'Name (EN)', value: pi.nameEn || '-', fieldPath: 'personalInfo.applicantInfo.nameEn' },
-            { label: 'Name (AR)', value: pi.nameAr || '-', fieldPath: 'personalInfo.applicantInfo.nameAr' },
-            { label: 'Gender', value: pi.gender || '-', fieldPath: 'personalInfo.applicantInfo.gender' },
-            { label: 'Date of Birth', value: pi.dob ? new Date(pi.dob).toLocaleDateString() : '-', fieldPath: 'personalInfo.applicantInfo.dob' },
-            { label: 'Nationality', value: pi.nationality || '-', fieldPath: 'personalInfo.applicantInfo.nationality' },
-            { label: 'Place of Birth', value: pi.placeOfBirth || '-', fieldPath: 'personalInfo.applicantInfo.placeOfBirth' },
-            { label: 'Religion', value: pi.religion || '-', fieldPath: 'personalInfo.applicantInfo.religion' },
-            { label: 'Marital Status', value: pi.maritalStatus || '-', fieldPath: 'personalInfo.applicantInfo.maritalStatus' },
-            { label: 'Current Country', value: pi.currentCountry || '-', fieldPath: 'personalInfo.applicantInfo.currentCountry' },
-            { label: 'Short Bio', value: pi.shortBio || '-', fieldPath: 'personalInfo.applicantInfo.shortBio' },
-            { label: 'Arabic Proficiency', value: pi.langProficiencyAr || '-', fieldPath: 'personalInfo.applicantInfo.langProficiencyAr' },
-            { label: 'English Proficiency', value: pi.langProficiencyEn || '-', fieldPath: 'personalInfo.applicantInfo.langProficiencyEn' }
-        ];
+        // Build field arrays
+        this.personalFields = this.buildPersonalFields(pi);
+        this.passportFields = this.buildPassportFields(passport);
+        this.contactFields = this.buildContactFields(contact);
+        this.employmentFields = this.buildEmploymentFields(employment);
 
-        // Passport Fields
-        this.passportFields = [
-            { label: 'Passport #', value: passport.number || this.request?.passportNumber || '-', fieldPath: 'personalInfo.passportDetails.number' },
-            { label: 'Type', value: passport.type || '-', fieldPath: 'personalInfo.passportDetails.type' },
-            { label: 'Issue Place', value: passport.issuePlace || '-', fieldPath: 'personalInfo.passportDetails.issuePlace' },
-            { label: 'Issue Country', value: passport.issueCountry || '-', fieldPath: 'personalInfo.passportDetails.issueCountry' },
-            { label: 'Issue Date', value: passport.issueDate ? new Date(passport.issueDate).toLocaleDateString() : '-', fieldPath: 'personalInfo.passportDetails.issueDate' },
-            { label: 'Expiry Date', value: passport.expiryDate ? new Date(passport.expiryDate).toLocaleDateString() : '-', fieldPath: 'personalInfo.passportDetails.expiryDate' },
-            { label: 'Issued By', value: passport.issueBy || '-', fieldPath: 'personalInfo.passportDetails.issueBy' }
-        ];
-
-        // Contact Fields
-        this.contactFields = [
-            { label: 'Email', value: contact.email || this.request?.email || '-', fieldPath: 'personalInfo.contactInfo.email' },
-            { label: 'Mobile', value: contact.mobile || this.request?.mobileNumber || '-', fieldPath: 'personalInfo.contactInfo.mobile' },
-            { label: 'Phone', value: contact.phone || '-', fieldPath: 'personalInfo.contactInfo.phone' },
-            { label: 'Permanent Address', value: contact.permanentAddress || '-', fieldPath: 'personalInfo.contactInfo.permanentAddress' },
-            { label: 'PO Box', value: contact.poBox || '-', fieldPath: 'personalInfo.contactInfo.poBox' },
-            { label: 'Qatar Address', value: contact.qatarAddress || '-', fieldPath: 'personalInfo.contactInfo.qatarAddress' }
-        ];
-
-        // Employment Fields
-        this.employmentFields = [
-            { label: 'Company Name', value: employment.companyName || '-', fieldPath: 'employmentAndEducation.employmentDetails.companyName' },
-            { label: 'Share of Capital', value: employment.shareOfTheCapital || '-', fieldPath: 'employmentAndEducation.employmentDetails.shareOfTheCapital' },
-            { label: 'Amount of Capital', value: employment.amountOfCapital || '-', fieldPath: 'employmentAndEducation.employmentDetails.amountOfCapital' },
-            { label: 'Profession', value: employment.profession || '-', fieldPath: 'employmentAndEducation.employmentDetails.profession' },
-            { label: 'Sponsor Name', value: employment.nameOfSponsor || '-', fieldPath: 'employmentAndEducation.employmentDetails.nameOfSponsor' },
-            { label: 'Sponsor Address', value: employment.addressOfSponsor || '-', fieldPath: 'employmentAndEducation.employmentDetails.addressOfSponsor' }
-        ];
-
-        // Load existing QVC data if available
         this.loadExistingQVCChecks();
     }
 
-    loadExistingQVCChecks() {
-        if (!this.request?.qvc?.qvc_checks) return;
-
-        const allFields = [
-            ...this.personalFields, 
-            ...this.passportFields, 
-            ...this.contactFields, 
-            ...this.employmentFields
+    private buildPersonalFields(personalInfo: any): FieldData[] {
+        return [
+            { label: 'Name (EN)', value: personalInfo.nameEn || '-', fieldPath: 'personalInfo.applicantInfo.nameEn' },
+            { label: 'Name (AR)', value: personalInfo.nameAr || '-', fieldPath: 'personalInfo.applicantInfo.nameAr' },
+            { label: 'Gender', value: personalInfo.gender || '-', fieldPath: 'personalInfo.applicantInfo.gender' },
+            { label: 'Date of Birth', value: this.formatDate(personalInfo.dob), fieldPath: 'personalInfo.applicantInfo.dob' },
+            { label: 'Nationality', value: personalInfo.nationality || '-', fieldPath: 'personalInfo.applicantInfo.nationality' },
+            { label: 'Place of Birth', value: personalInfo.placeOfBirth || '-', fieldPath: 'personalInfo.applicantInfo.placeOfBirth' },
+            { label: 'Religion', value: personalInfo.religion || '-', fieldPath: 'personalInfo.applicantInfo.religion' },
+            { label: 'Marital Status', value: personalInfo.maritalStatus || '-', fieldPath: 'personalInfo.applicantInfo.maritalStatus' },
+            { label: 'Current Country', value: personalInfo.currentCountry || '-', fieldPath: 'personalInfo.applicantInfo.currentCountry' },
+            { label: 'Short Bio', value: personalInfo.shortBio || '-', fieldPath: 'personalInfo.applicantInfo.shortBio' },
+            { label: 'Arabic Proficiency', value: personalInfo.langProficiencyAr || '-', fieldPath: 'personalInfo.applicantInfo.langProficiencyAr' },
+            { label: 'English Proficiency', value: personalInfo.langProficiencyEn || '-', fieldPath: 'personalInfo.applicantInfo.langProficiencyEn' }
         ];
-        
-        this.request.qvc.qvc_checks.forEach((check: any) => {
-            // Load basic fields
-            const field = allFields.find(f => f.fieldPath === check.fieldPath);
-            if (field) {
-                field.qvcStatus = check.status;
-                field.qvcComment = check.commentsEn;
-            }
+    }
 
-            // Load education QVC status
-            if (check.fieldPath.startsWith('employmentAndEducation.educations')) {
-                const indexMatch = check.fieldPath.match(/employmentAndEducation\.educations\[(\d+)\]/);
-                if (indexMatch && this.educationData[parseInt(indexMatch[1])]) {
-                    this.educationData[parseInt(indexMatch[1])].qvcStatus = check.status;
-                    this.educationData[parseInt(indexMatch[1])].qvcComment = check.commentsEn;
-                }
-            }
+    private buildPassportFields(passportInfo: any): FieldData[] {
+        return [
+            { label: 'Passport #', value: passportInfo.number || this.request?.passportNumber || '-', fieldPath: 'personalInfo.passportDetails.number' },
+            { label: 'Type', value: passportInfo.type || '-', fieldPath: 'personalInfo.passportDetails.type' },
+            { label: 'Issue Place', value: passportInfo.issuePlace || '-', fieldPath: 'personalInfo.passportDetails.issuePlace' },
+            { label: 'Issue Country', value: passportInfo.issueCountry || '-', fieldPath: 'personalInfo.passportDetails.issueCountry' },
+            { label: 'Issue Date', value: this.formatDate(passportInfo.issueDate), fieldPath: 'personalInfo.passportDetails.issueDate' },
+            { label: 'Expiry Date', value: this.formatDate(passportInfo.expiryDate), fieldPath: 'personalInfo.passportDetails.expiryDate' },
+            { label: 'Issued By', value: passportInfo.issueBy || '-', fieldPath: 'personalInfo.passportDetails.issueBy' }
+        ];
+    }
 
-            // Load previous jobs QVC status
-            if (check.fieldPath.startsWith('employmentAndEducation.previousJobs')) {
-                const indexMatch = check.fieldPath.match(/employmentAndEducation\.previousJobs\[(\d+)\]/);
-                if (indexMatch && this.previousJobsData[parseInt(indexMatch[1])]) {
-                    this.previousJobsData[parseInt(indexMatch[1])].qvcStatus = check.status;
-                    this.previousJobsData[parseInt(indexMatch[1])].qvcComment = check.commentsEn;
-                }
-            }
+    private buildContactFields(contactInfo: any): FieldData[] {
+        return [
+            { label: 'Email', value: contactInfo.email || this.request?.email || '-', fieldPath: 'personalInfo.contactInfo.email' },
+            { label: 'Mobile', value: contactInfo.mobile || this.request?.mobileNumber || '-', fieldPath: 'personalInfo.contactInfo.mobile' },
+            { label: 'Phone', value: contactInfo.phone || '-', fieldPath: 'personalInfo.contactInfo.phone' },
+            { label: 'Permanent Address', value: contactInfo.permanentAddress || '-', fieldPath: 'personalInfo.contactInfo.permanentAddress' },
+            { label: 'PO Box', value: contactInfo.poBox || '-', fieldPath: 'personalInfo.contactInfo.poBox' },
+            { label: 'Qatar Address', value: contactInfo.qatarAddress || '-', fieldPath: 'personalInfo.contactInfo.qatarAddress' }
+        ];
+    }
 
-            // Load residences QVC status
-            if (check.fieldPath.startsWith('ResidencyAndTravelAndFamily.residences')) {
-                const indexMatch = check.fieldPath.match(/ResidencyAndTravelAndFamily\.residences\[(\d+)\]/);
-                if (indexMatch && this.residencesData[parseInt(indexMatch[1])]) {
-                    this.residencesData[parseInt(indexMatch[1])].qvcStatus = check.status;
-                    this.residencesData[parseInt(indexMatch[1])].qvcComment = check.commentsEn;
-                }
-            }
+    private buildEmploymentFields(employmentInfo: any): FieldData[] {
+        return [
+            { label: 'Company Name', value: employmentInfo.companyName || '-', fieldPath: 'employmentAndEducation.employmentDetails.companyName' },
+            { label: 'Share of Capital', value: employmentInfo.shareOfTheCapital || '-', fieldPath: 'employmentAndEducation.employmentDetails.shareOfTheCapital' },
+            { label: 'Amount of Capital', value: employmentInfo.amountOfCapital || '-', fieldPath: 'employmentAndEducation.employmentDetails.amountOfCapital' },
+            { label: 'Profession', value: employmentInfo.profession || '-', fieldPath: 'employmentAndEducation.employmentDetails.profession' },
+            { label: 'Sponsor Name', value: employmentInfo.nameOfSponsor || '-', fieldPath: 'employmentAndEducation.employmentDetails.nameOfSponsor' },
+            { label: 'Sponsor Address', value: employmentInfo.addressOfSponsor || '-', fieldPath: 'employmentAndEducation.employmentDetails.addressOfSponsor' }
+        ];
+    }
 
-            // Load other nationalities QVC status
-            if (check.fieldPath.startsWith('ResidencyAndTravelAndFamily.otherNationalities')) {
-                const indexMatch = check.fieldPath.match(/ResidencyAndTravelAndFamily\.otherNationalities\[(\d+)\]/);
-                if (indexMatch && this.otherNationalitiesData[parseInt(indexMatch[1])]) {
-                    this.otherNationalitiesData[parseInt(indexMatch[1])].qvcStatus = check.status;
-                    this.otherNationalitiesData[parseInt(indexMatch[1])].qvcComment = check.commentsEn;
-                }
-            }
+    private formatDate(dateString: string): string {
+        return dateString ? new Date(dateString).toLocaleDateString() : '-';
+    }
 
-            // Load countries visited QVC status
-            if (check.fieldPath.startsWith('ResidencyAndTravelAndFamily.countriesVisitedLast10Years')) {
-                const indexMatch = check.fieldPath.match(/ResidencyAndTravelAndFamily\.countriesVisitedLast10Years\[(\d+)\]/);
-                if (indexMatch && this.countriesVisitedData[parseInt(indexMatch[1])]) {
-                    this.countriesVisitedData[parseInt(indexMatch[1])].qvcStatus = check.status;
-                    this.countriesVisitedData[parseInt(indexMatch[1])].qvcComment = check.commentsEn;
-                }
-            }
+    // Security Implementation
+    private initializeSecurityProtection(): void {
+        if (!isPlatformBrowser(this.platformId)) return;
 
-            // Load family members QVC status
-            if (check.fieldPath.startsWith('ResidencyAndTravelAndFamily.familyMembers')) {
-                const indexMatch = check.fieldPath.match(/ResidencyAndTravelAndFamily\.familyMembers\[(\d+)\]/);
-                if (indexMatch && this.familyMembersData[parseInt(indexMatch[1])]) {
-                    this.familyMembersData[parseInt(indexMatch[1])].qvcStatus = check.status;
-                    this.familyMembersData[parseInt(indexMatch[1])].qvcComment = check.commentsEn;
-                }
-            }
+        this.securityEventListeners = {
+            keydown: this.preventScreenshotKeys.bind(this),
+            contextmenu: this.onRightClick.bind(this),
+            dragstart: this.onDragStart.bind(this),
+            selectstart: this.onSelectStart.bind(this)
+        };
 
-            // Load documents QVC status
-            if (check.fieldPath.startsWith('documents.')) {
-                const docType = check.fieldPath.replace('documents.', '');
-                const doc = this.request.documents.find((d: any) => d.type === docType);
-                if (doc) {
-                    doc.qvcStatus = check.status;
-                }
-            }
+        Object.entries(this.securityEventListeners).forEach(([event, handler]) => {
+            document.addEventListener(event, handler);
         });
     }
 
-    calculateQVCProgress() {
-        const allBasicFields = [
-            ...this.personalFields, 
-            ...this.passportFields, 
-            ...this.contactFields, 
-            ...this.employmentFields
-        ];
-        
-        const educationCount = this.educationData.length;
-        const previousJobsCount = this.previousJobsData.length;
-        const residencesCount = this.residencesData.length;
-        const nationalitiesCount = this.otherNationalitiesData.length;
-        const countriesVisitedCount = this.countriesVisitedData.length;
-        const familyCount = this.familyMembersData.length;
-        const documentCount = this.request?.documents?.length || 0;
-        
-        this.qvcProgress.total = allBasicFields.length + educationCount + previousJobsCount + 
-                                residencesCount + nationalitiesCount + countriesVisitedCount + 
-                                familyCount + documentCount;
-        
-        const checkedBasic = allBasicFields.filter(f => f.qvcStatus).length;
-        const checkedEducation = this.educationData.filter(e => e.qvcStatus).length;
-        const checkedPreviousJobs = this.previousJobsData.filter(j => j.qvcStatus).length;
-        const checkedResidences = this.residencesData.filter(r => r.qvcStatus).length;
-        const checkedNationalities = this.otherNationalitiesData.filter(n => n.qvcStatus).length;
-        const checkedCountriesVisited = this.countriesVisitedData.filter(c => c.qvcStatus).length;
-        const checkedFamily = this.familyMembersData.filter(f => f.qvcStatus).length;
-        const checkedDocuments = this.request?.documents?.filter((d: any) => d.qvcStatus)?.length || 0;
-        
-        this.qvcProgress.checked = checkedBasic + checkedEducation + checkedPreviousJobs + 
-                                  checkedResidences + checkedNationalities + checkedCountriesVisited + 
-                                  checkedFamily + checkedDocuments;
+    private removeSecurityProtection(): void {
+        if (!isPlatformBrowser(this.platformId)) return;
+
+        Object.entries(this.securityEventListeners).forEach(([event, handler]) => {
+            document.removeEventListener(event, handler);
+        });
+    }
+
+    // MISSING METHOD - ADDED HERE
+    onKeyDown(event: KeyboardEvent): void {
+        // Prevent Print Screen, F12 (DevTools), and other screenshot-related keys
+        const blockedKeys = ['PrintScreen', 'F12', 'F11', 'Pause', 'ScrollLock'];
+
+        // Ctrl+Shift+I (DevTools), Ctrl+Shift+C (Inspect Element)
+        if ((event.ctrlKey && event.shiftKey && (event.key === 'I' || event.key === 'C')) || event.key === 'F12' || event.key === 'PrintScreen' || blockedKeys.includes(event.code)) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            // Show warning for Print Screen
+            if (event.key === 'PrintScreen') {
+                this.messageService.add({
+                    severity: 'warn',
+                    summary: 'Security Notice',
+                    detail: 'Screenshots are disabled for protected content',
+                    life: 3000
+                });
+            }
+        }
+    }
+
+    private preventScreenshotKeys(event: KeyboardEvent): void {
+        if (this.BLOCKED_KEYS.includes(event.code) || (event.ctrlKey && event.shiftKey && (event.key === 'I' || event.key === 'C'))) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (event.key === 'PrintScreen') {
+                this.messageService.add({
+                    severity: 'warn',
+                    summary: 'Security Notice',
+                    detail: 'Screenshots are disabled for protected content',
+                    life: 3000
+                });
+            }
+        }
+    }
+
+    onRightClick(event: MouseEvent): void {
+        if (this.previewVisible) {
+            event.preventDefault();
+            if ((this.previewUrl && this.isImage(this.previewName)) || this.isPdf(this.previewName)) {
+                this.showProtectionMessage = true;
+                setTimeout(() => {
+                    this.showProtectionMessage = false;
+                }, 3000);
+            }
+        }
+    }
+    onDragStart(event: DragEvent): void {
+        if (this.previewVisible) {
+            event.preventDefault();
+        }
+    }
+
+    onSelectStart(event: Event): void {
+        if (this.previewVisible) {
+            event.preventDefault();
+        }
     }
 
     // QVC Methods
-    startQVC() {
+    get showQVCButton(): boolean {
+        const userRole = 'admin';
+        const hasQVC = !!this.request?.qvc;
+        const isPending = this.applicationStageStatus.toLowerCase() === 'pending';
+
+        return userRole === 'admin' && !hasQVC && isPending && !this.isQVCInProgress;
+    }
+
+    startQVC(): void {
         this.isQVCInProgress = true;
         this.messageService.add({
             severity: 'info',
@@ -328,14 +402,39 @@ export class ViewSingleApplicationComponent implements OnInit {
         });
     }
 
-    markFieldCorrect(field: any) {
+    verifySection(section: string): void {
+        const sectionHandlers: { [key: string]: () => void } = {
+            personalInfo: () => this.personalFields.forEach((field) => !field.qvcStatus && this.markFieldCorrect(field)),
+            passportDetails: () => this.passportFields.forEach((field) => !field.qvcStatus && this.markFieldCorrect(field)),
+            contactInfo: () => this.contactFields.forEach((field) => !field.qvcStatus && this.markFieldCorrect(field)),
+            employmentDetails: () => this.employmentFields.forEach((field) => !field.qvcStatus && this.markFieldCorrect(field)),
+            previousJobs: () => this.previousJobsData.forEach((_, index) => !this.previousJobsData[index].qvcStatus && this.markPreviousJobCorrect(index)),
+            education: () => this.educationData.forEach((_, index) => !this.educationData[index].qvcStatus && this.markEducationCorrect(index)),
+            residences: () => this.residencesData.forEach((_, index) => !this.residencesData[index].qvcStatus && this.markResidenceCorrect(index)),
+            otherNationalities: () => this.otherNationalitiesData.forEach((_, index) => !this.otherNationalitiesData[index].qvcStatus && this.markOtherNationalityCorrect(index)),
+            countriesVisited: () => this.countriesVisitedData.forEach((_, index) => !this.countriesVisitedData[index].qvcStatus && this.markCountryVisitCorrect(index)),
+            familyMembers: () => this.familyMembersData.forEach((_, index) => !this.familyMembersData[index].qvcStatus && this.markFamilyMemberCorrect(index)),
+            documents: () => this.request.documents.forEach((_: any, index: number) => !this.request.documents[index].qvcStatus && this.markDocumentCorrect(index))
+        };
+
+        if (sectionHandlers[section]) {
+            sectionHandlers[section]();
+            this.messageService.add({
+                severity: 'success',
+                summary: 'Section Verified',
+                detail: `${section} has been verified as correct`
+            });
+        }
+    }
+
+    markFieldCorrect(field: FieldData): void {
         field.qvcStatus = 'correct';
         field.qvcComment = 'Field is correct';
         this.addQVCCheck(field, 'correct', 'Field is correct', 'الحقل صحيح');
         this.calculateQVCProgress();
     }
 
-    markFieldWrong(field: any) {
+    markFieldWrong(field: FieldData): void {
         this.currentField = field;
         this.currentFieldStatus = 'wrong';
         this.currentFieldCommentEn = '';
@@ -344,119 +443,49 @@ export class ViewSingleApplicationComponent implements OnInit {
         this.showCommentDialog = true;
     }
 
-    verifySection(section: string) {
-        switch (section) {
-            case 'personalInfo':
-                this.personalFields.forEach(field => {
-                    if (!field.qvcStatus) this.markFieldCorrect(field);
-                });
-                break;
-            case 'passportDetails':
-                this.passportFields.forEach(field => {
-                    if (!field.qvcStatus) this.markFieldCorrect(field);
-                });
-                break;
-            case 'contactInfo':
-                this.contactFields.forEach(field => {
-                    if (!field.qvcStatus) this.markFieldCorrect(field);
-                });
-                break;
-            case 'employmentDetails':
-                this.employmentFields.forEach(field => {
-                    if (!field.qvcStatus) this.markFieldCorrect(field);
-                });
-                break;
-            case 'previousJobs':
-                this.previousJobsData.forEach((job, index) => {
-                    if (!job.qvcStatus) this.markPreviousJobCorrect(index);
-                });
-                break;
-            case 'education':
-                this.educationData.forEach((edu, index) => {
-                    if (!edu.qvcStatus) this.markEducationCorrect(index);
-                });
-                break;
-            case 'residences':
-                this.residencesData.forEach((residence, index) => {
-                    if (!residence.qvcStatus) this.markResidenceCorrect(index);
-                });
-                break;
-            case 'otherNationalities':
-                this.otherNationalitiesData.forEach((nationality, index) => {
-                    if (!nationality.qvcStatus) this.markOtherNationalityCorrect(index);
-                });
-                break;
-            case 'countriesVisited':
-                this.countriesVisitedData.forEach((visit, index) => {
-                    if (!visit.qvcStatus) this.markCountryVisitCorrect(index);
-                });
-                break;
-            case 'familyMembers':
-                this.familyMembersData.forEach((member, index) => {
-                    if (!member.qvcStatus) this.markFamilyMemberCorrect(index);
-                });
-                break;
-            case 'documents':
-                this.request.documents.forEach((doc: any, index: number) => {
-                    if (!doc.qvcStatus) this.markDocumentCorrect(index);
-                });
-                break;
-        }
-
-        this.messageService.add({
-            severity: 'success',
-            summary: 'Section Verified',
-            detail: `${section} has been verified as correct`
-        });
-    }
-
-    saveFieldComment() {
+    saveFieldComment(): void {
         if (this.currentField) {
-            this.currentField.qvcStatus = this.currentFieldStatus;
-            this.currentField.qvcComment = this.currentFieldCommentEn;
-            
-            const corrections = this.currentFieldCorrections 
-                ? this.currentFieldCorrections.split('\n').filter((c: string) => c.trim())
-                : [];
+            const targetObject = this.currentField._targetObject || this.currentField;
 
-            this.addQVCCheck(
-                this.currentField,
-                this.currentFieldStatus,
-                this.currentFieldCommentEn,
-                this.currentFieldCommentAr,
-                corrections
-            );
+            targetObject.qvcStatus = this.currentFieldStatus;
+            targetObject.qvcComment = this.currentFieldCommentEn;
+
+            const corrections = this.currentFieldCorrections ? this.currentFieldCorrections.split('\n').filter((c) => c.trim()) : [];
+
+            this.addQVCCheck(this.currentField, this.currentFieldStatus, this.currentFieldCommentEn, this.currentFieldCommentAr, corrections);
 
             this.calculateQVCProgress();
+
+            delete this.currentField._targetObject;
         }
 
         this.showCommentDialog = false;
         this.resetFieldComment();
     }
 
-    cancelFieldComment() {
+    cancelFieldComment(): void {
         this.showCommentDialog = false;
         this.resetFieldComment();
     }
 
-    resetFieldComment() {
+    private resetFieldComment(): void {
         this.currentField = null;
-        this.currentFieldStatus = '';
+        this.currentFieldStatus = 'correct';
         this.currentFieldCommentEn = '';
         this.currentFieldCommentAr = '';
         this.currentFieldCorrections = '';
     }
 
-    addQVCCheck(field: any, status: string, commentEn: string, commentAr: string, corrections: string[] = []) {
-        const existingIndex = this.qvcChecks.findIndex(check => check.fieldPath === field.fieldPath);
-        
-        const check = {
+    private addQVCCheck(field: QVCField, status: QVCStatus, commentEn: string, commentAr: string, corrections: string[] = []): void {
+        const existingIndex = this.qvcChecks.findIndex((check) => check.fieldPath === field.fieldPath);
+
+        const check: QVCCheck = {
             fieldName: field.label,
             fieldPath: field.fieldPath,
-            status: status,
+            status,
             commentsEn: commentEn,
             commentsAr: commentAr,
-            corrections: corrections
+            corrections
         };
 
         if (existingIndex >= 0) {
@@ -466,7 +495,7 @@ export class ViewSingleApplicationComponent implements OnInit {
         }
     }
 
-    async submitQVC() {
+    async submitQVC(): Promise<void> {
         if (this.qvcChecks.length === 0) {
             this.messageService.add({
                 severity: 'warn',
@@ -484,8 +513,8 @@ export class ViewSingleApplicationComponent implements OnInit {
                 adminComments: 'QVC completed via web interface'
             };
 
-            const response: any = await this.reqService.submitQVC(payload).toPromise();
-            
+            const response: any = await this.reqService.submitQVC(payload).pipe(takeUntil(this.destroy$)).toPromise();
+
             this.messageService.add({
                 severity: 'success',
                 summary: 'QVC Submitted',
@@ -494,8 +523,8 @@ export class ViewSingleApplicationComponent implements OnInit {
 
             this.isQVCInProgress = false;
             this.request.qvc = response.data.request.qvc;
-            
         } catch (error) {
+            console.error('QVC submission error:', error);
             this.messageService.add({
                 severity: 'error',
                 summary: 'QVC Failed',
@@ -504,24 +533,24 @@ export class ViewSingleApplicationComponent implements OnInit {
         }
     }
 
-    determineOverallStatus(): string {
-        const wrongCount = this.qvcChecks.filter(check => check.status === 'wrong').length;
-        const needsCorrectionCount = this.qvcChecks.filter(check => check.status === 'needs_correction').length;
+    private determineOverallStatus(): QVCStatus {
+        const wrongCount = this.qvcChecks.filter((check) => check.status === 'wrong').length;
+        const needsCorrectionCount = this.qvcChecks.filter((check) => check.status === 'needs_correction').length;
 
         if (wrongCount > 0) return 'rejected';
         if (needsCorrectionCount > 0) return 'needs_correction';
         return 'approved';
     }
 
-    saveQVCProgress() {
+    saveQVCProgress(): void {
         const progress = {
             requestId: this.request.id,
             checks: this.qvcChecks,
             timestamp: new Date().toISOString()
         };
-        
+
         localStorage.setItem(`qvc-progress-${this.request.id}`, JSON.stringify(progress));
-        
+
         this.messageService.add({
             severity: 'info',
             summary: 'Progress Saved',
@@ -529,14 +558,12 @@ export class ViewSingleApplicationComponent implements OnInit {
         });
     }
 
-    cancelQVC() {
+    cancelQVC(): void {
         this.isQVCInProgress = false;
         this.qvcChecks = [];
-        
-        // Reset all field statuses
         this.resetAllQVCChecks();
         this.calculateQVCProgress();
-        
+
         this.messageService.add({
             severity: 'info',
             summary: 'QVC Cancelled',
@@ -544,56 +571,39 @@ export class ViewSingleApplicationComponent implements OnInit {
         });
     }
 
-    resetAllQVCChecks() {
-        // Reset basic fields
-        const allBasicFields = [
-            ...this.personalFields, 
-            ...this.passportFields, 
-            ...this.contactFields, 
-            ...this.employmentFields
-        ];
-        allBasicFields.forEach(field => {
-            field.qvcStatus = undefined;
-            field.qvcComment = undefined;
+    private resetAllQVCChecks(): void {
+        const allFields = [...this.personalFields, ...this.passportFields, ...this.contactFields, ...this.employmentFields];
+
+        allFields.forEach((field) => {
+            delete field.qvcStatus;
+            delete field.qvcComment;
         });
 
-        // Reset arrays
-        [this.educationData, this.familyMembersData, this.previousJobsData, 
-         this.residencesData, this.otherNationalitiesData, this.countriesVisitedData]
-        .forEach(array => {
+        const allArrays = [this.educationData, this.familyMembersData, this.previousJobsData, this.residencesData, this.otherNationalitiesData, this.countriesVisitedData];
+
+        allArrays.forEach((array) => {
             array.forEach((item: any) => {
-                item.qvcStatus = undefined;
-                item.qvcComment = undefined;
+                delete item.qvcStatus;
+                delete item.qvcComment;
             });
         });
 
-        // Reset documents
         this.request.documents.forEach((doc: any) => {
-            doc.qvcStatus = undefined;
+            delete doc.qvcStatus;
         });
     }
 
-    getQVCStatusText(status: string): string {
-        const statusMap: { [key: string]: string } = {
-            'correct': 'Correct',
-            'wrong': 'Wrong',
-            'needs_correction': 'Needs Correction',
-            'approved': 'Approved',
-            'rejected': 'Rejected'
-        };
-        return statusMap[status] || status;
-    }
+    // Individual QVC methods for complex objects
+    markEducationCorrect(index: number): void {
+        const education = this.educationData[index];
+        education.qvcStatus = 'correct';
+        education.qvcComment = 'Education record is correct';
 
-    // Education QVC methods
-    markEducationCorrect(index: number) {
-        const edu = this.educationData[index];
-        edu.qvcStatus = 'correct';
-        edu.qvcComment = 'Education record is correct';
-        
         this.addQVCCheck(
-            { 
-                label: `Education ${index + 1}: ${edu.qualification}`, 
-                fieldPath: `employmentAndEducation.educations[${index}]` 
+            {
+                label: `Education ${index + 1}: ${education.qualification}`,
+                fieldPath: `employmentAndEducation.educations[${index}]`,
+                value: `${education.qualification} - ${education.university}`
             },
             'correct',
             'Education record is correct',
@@ -602,33 +612,28 @@ export class ViewSingleApplicationComponent implements OnInit {
         this.calculateQVCProgress();
     }
 
-    markEducationNeedsCorrection(index: number) {
-        const edu = this.educationData[index];
-        edu.qvcStatus = 'needs_correction';
-        edu.qvcComment = 'Education record needs verification';
-        
-        this.addQVCCheck(
-            { 
-                label: `Education ${index + 1}: ${edu.qualification}`, 
-                fieldPath: `employmentAndEducation.educations[${index}]` 
+    markEducationNeedsCorrection(index: number): void {
+        const education = this.educationData[index];
+        this.promptForFieldCorrection(
+            {
+                label: `Education ${index + 1}: ${education.qualification}`,
+                fieldPath: `employmentAndEducation.educations[${index}]`,
+                value: `${education.qualification} - ${education.university}`
             },
-            'needs_correction',
-            'Education record needs verification',
-            'سجل التعليم يحتاج إلى التحقق'
+            education
         );
-        this.calculateQVCProgress();
     }
 
-    // Previous Jobs QVC methods
-    markPreviousJobCorrect(index: number) {
+    markPreviousJobCorrect(index: number): void {
         const job = this.previousJobsData[index];
         job.qvcStatus = 'correct';
         job.qvcComment = 'Previous job record is correct';
-        
+
         this.addQVCCheck(
-            { 
-                label: `Previous Job ${index + 1}`, 
-                fieldPath: `employmentAndEducation.previousJobs[${index}]` 
+            {
+                label: `Previous Job ${index + 1}`,
+                fieldPath: `employmentAndEducation.previousJobs[${index}]`,
+                value: `${job.entity} - ${job.title}`
             },
             'correct',
             'Previous job record is correct',
@@ -637,33 +642,28 @@ export class ViewSingleApplicationComponent implements OnInit {
         this.calculateQVCProgress();
     }
 
-    markPreviousJobNeedsCorrection(index: number) {
+    markPreviousJobNeedsCorrection(index: number): void {
         const job = this.previousJobsData[index];
-        job.qvcStatus = 'needs_correction';
-        job.qvcComment = 'Previous job record needs verification';
-        
-        this.addQVCCheck(
-            { 
-                label: `Previous Job ${index + 1}`, 
-                fieldPath: `employmentAndEducation.previousJobs[${index}]` 
+        this.promptForFieldCorrection(
+            {
+                label: `Previous Job ${index + 1}`,
+                fieldPath: `employmentAndEducation.previousJobs[${index}]`,
+                value: `${job.entity} - ${job.title}`
             },
-            'needs_correction',
-            'Previous job record needs verification',
-            'سجل الوظيفة السابقة يحتاج إلى التحقق'
+            job
         );
-        this.calculateQVCProgress();
     }
 
-    // Residences QVC methods
-    markResidenceCorrect(index: number) {
+    markResidenceCorrect(index: number): void {
         const residence = this.residencesData[index];
         residence.qvcStatus = 'correct';
         residence.qvcComment = 'Residence record is correct';
-        
+
         this.addQVCCheck(
-            { 
-                label: `Residence ${index + 1}`, 
-                fieldPath: `ResidencyAndTravelAndFamily.residences[${index}]` 
+            {
+                label: `Residence ${index + 1}`,
+                fieldPath: `ResidencyAndTravelAndFamily.residences[${index}]`,
+                value: `${residence.country} - ${residence.type}`
             },
             'correct',
             'Residence record is correct',
@@ -672,33 +672,28 @@ export class ViewSingleApplicationComponent implements OnInit {
         this.calculateQVCProgress();
     }
 
-    markResidenceNeedsCorrection(index: number) {
+    markResidenceNeedsCorrection(index: number): void {
         const residence = this.residencesData[index];
-        residence.qvcStatus = 'needs_correction';
-        residence.qvcComment = 'Residence record needs verification';
-        
-        this.addQVCCheck(
-            { 
-                label: `Residence ${index + 1}`, 
-                fieldPath: `ResidencyAndTravelAndFamily.residences[${index}]` 
+        this.promptForFieldCorrection(
+            {
+                label: `Residence ${index + 1}`,
+                fieldPath: `ResidencyAndTravelAndFamily.residences[${index}]`,
+                value: `${residence.country} - ${residence.type}`
             },
-            'needs_correction',
-            'Residence record needs verification',
-            'سجل الإقامة يحتاج إلى التحقق'
+            residence
         );
-        this.calculateQVCProgress();
     }
 
-    // Other Nationalities QVC methods
-    markOtherNationalityCorrect(index: number) {
+    markOtherNationalityCorrect(index: number): void {
         const nationality = this.otherNationalitiesData[index];
         nationality.qvcStatus = 'correct';
         nationality.qvcComment = 'Other nationality record is correct';
-        
+
         this.addQVCCheck(
-            { 
-                label: `Other Nationality ${index + 1}: ${nationality.country}`, 
-                fieldPath: `ResidencyAndTravelAndFamily.otherNationalities[${index}]` 
+            {
+                label: `Other Nationality ${index + 1}: ${nationality.country}`,
+                fieldPath: `ResidencyAndTravelAndFamily.otherNationalities[${index}]`,
+                value: `${nationality.country} - ${nationality.passportNumber}`
             },
             'correct',
             'Other nationality record is correct',
@@ -707,33 +702,28 @@ export class ViewSingleApplicationComponent implements OnInit {
         this.calculateQVCProgress();
     }
 
-    markOtherNationalityNeedsCorrection(index: number) {
+    markOtherNationalityNeedsCorrection(index: number): void {
         const nationality = this.otherNationalitiesData[index];
-        nationality.qvcStatus = 'needs_correction';
-        nationality.qvcComment = 'Other nationality record needs verification';
-        
-        this.addQVCCheck(
-            { 
-                label: `Other Nationality ${index + 1}: ${nationality.country}`, 
-                fieldPath: `ResidencyAndTravelAndFamily.otherNationalities[${index}]` 
+        this.promptForFieldCorrection(
+            {
+                label: `Other Nationality ${index + 1}: ${nationality.country}`,
+                fieldPath: `ResidencyAndTravelAndFamily.otherNationalities[${index}]`,
+                value: `${nationality.country} - ${nationality.passportNumber}`
             },
-            'needs_correction',
-            'Other nationality record needs verification',
-            'سجل الجنسية الأخرى يحتاج إلى التحقق'
+            nationality
         );
-        this.calculateQVCProgress();
     }
 
-    // Countries Visited QVC methods
-    markCountryVisitCorrect(index: number) {
+    markCountryVisitCorrect(index: number): void {
         const visit = this.countriesVisitedData[index];
         visit.qvcStatus = 'correct';
         visit.qvcComment = 'Country visit record is correct';
-        
+
         this.addQVCCheck(
-            { 
-                label: `Country Visit ${index + 1}: ${visit.country}`, 
-                fieldPath: `ResidencyAndTravelAndFamily.countriesVisitedLast10Years[${index}]` 
+            {
+                label: `Country Visit ${index + 1}: ${visit.country}`,
+                fieldPath: `ResidencyAndTravelAndFamily.countriesVisitedLast10Years[${index}]`,
+                value: `${visit.country} - ${visit.period}`
             },
             'correct',
             'Country visit record is correct',
@@ -742,33 +732,28 @@ export class ViewSingleApplicationComponent implements OnInit {
         this.calculateQVCProgress();
     }
 
-    markCountryVisitNeedsCorrection(index: number) {
+    markCountryVisitNeedsCorrection(index: number): void {
         const visit = this.countriesVisitedData[index];
-        visit.qvcStatus = 'needs_correction';
-        visit.qvcComment = 'Country visit record needs verification';
-        
-        this.addQVCCheck(
-            { 
-                label: `Country Visit ${index + 1}: ${visit.country}`, 
-                fieldPath: `ResidencyAndTravelAndFamily.countriesVisitedLast10Years[${index}]` 
+        this.promptForFieldCorrection(
+            {
+                label: `Country Visit ${index + 1}: ${visit.country}`,
+                fieldPath: `ResidencyAndTravelAndFamily.countriesVisitedLast10Years[${index}]`,
+                value: `${visit.country} - ${visit.period}`
             },
-            'needs_correction',
-            'Country visit record needs verification',
-            'سجل زيارة البلد يحتاج إلى التحقق'
+            visit
         );
-        this.calculateQVCProgress();
     }
 
-    // Family member QVC methods
-    markFamilyMemberCorrect(index: number) {
+    markFamilyMemberCorrect(index: number): void {
         const member = this.familyMembersData[index];
         member.qvcStatus = 'correct';
         member.qvcComment = 'Family member information is correct';
-        
+
         this.addQVCCheck(
-            { 
-                label: `Family Member: ${member.name}`, 
-                fieldPath: `ResidencyAndTravelAndFamily.familyMembers[${index}]` 
+            {
+                label: `Family Member: ${member.name}`,
+                fieldPath: `ResidencyAndTravelAndFamily.familyMembers[${index}]`,
+                value: `${member.name} - ${member.relation}`
             },
             'correct',
             'Family member information is correct',
@@ -777,32 +762,27 @@ export class ViewSingleApplicationComponent implements OnInit {
         this.calculateQVCProgress();
     }
 
-    markFamilyMemberNeedsCorrection(index: number) {
+    markFamilyMemberNeedsCorrection(index: number): void {
         const member = this.familyMembersData[index];
-        member.qvcStatus = 'needs_correction';
-        member.qvcComment = 'Family member information needs verification';
-        
-        this.addQVCCheck(
-            { 
-                label: `Family Member: ${member.name}`, 
-                fieldPath: `ResidencyAndTravelAndFamily.familyMembers[${index}]` 
+        this.promptForFieldCorrection(
+            {
+                label: `Family Member: ${member.name}`,
+                fieldPath: `ResidencyAndTravelAndFamily.familyMembers[${index}]`,
+                value: `${member.name} - ${member.relation}`
             },
-            'needs_correction',
-            'Family member information needs verification',
-            'معلومات أفراد الأسرة تحتاج إلى التحقق'
+            member
         );
-        this.calculateQVCProgress();
     }
 
-    // Document QVC methods
-    markDocumentCorrect(index: number) {
+    markDocumentCorrect(index: number): void {
         const doc = this.request.documents[index];
         doc.qvcStatus = 'correct';
-        
+
         this.addQVCCheck(
-            { 
-                label: `Document: ${this.formatDocumentName(doc.type)}`, 
-                fieldPath: `documents.${doc.type}` 
+            {
+                label: `Document: ${this.formatDocumentName(doc.type)}`,
+                fieldPath: `documents.${doc.type}`,
+                value: doc.documentName || doc.type
             },
             'correct',
             'Document is valid and complete',
@@ -811,64 +791,107 @@ export class ViewSingleApplicationComponent implements OnInit {
         this.calculateQVCProgress();
     }
 
-    // Existing helper methods
-    getIcon(status?: string) {
-        const s = (status || '').toString().toLowerCase();
-        switch (s) {
-            case 'approved': return 'pi pi-check';
-            case 'pending': return 'pi pi-hourglass';
-            case 'draft': return 'pi pi-pencil';
-            case 'rejected': return 'pi pi-times';
-            default: return 'pi pi-circle-on';
-        }
+    markDocumentNeedsCorrection(index: number): void {
+        const doc = this.request.documents[index];
+        this.promptForFieldCorrection(
+            {
+                label: `Document: ${this.formatDocumentName(doc.type)}`,
+                fieldPath: `documents.${doc.type}`,
+                value: doc.documentName || doc.type
+            },
+            doc
+        );
     }
 
-    getColor(status?: string) {
-        const s = (status || '').toString().toLowerCase();
-        switch (s) {
-            case 'approved': return '#16a34a';
-            case 'pending': return '#202a5a';
-            case 'rejected': return '#92193b';
-            case 'draft': return '#4e7cf2';
-            default: return '#9ca3af';
-        }
+    private promptForFieldCorrection(fieldData: QVCField, targetObject: any): void {
+        this.currentField = {
+            ...fieldData,
+            value: fieldData.value || '',
+            _targetObject: targetObject
+        };
+        this.currentFieldStatus = 'needs_correction';
+        this.currentFieldCommentEn = '';
+        this.currentFieldCommentAr = '';
+        this.currentFieldCorrections = '';
+        this.showCommentDialog = true;
     }
 
-    scrollTo(sectionId: string) {
-        this.activeSection = sectionId;
-        const el = document.getElementById(sectionId);
-        if (!el) return;
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Helper Methods
+    private getStageIcon(status: string): string {
+        const statusMap: { [key: string]: string } = {
+            approved: 'pi pi-check',
+            pending: 'pi pi-hourglass',
+            draft: 'pi pi-pencil',
+            rejected: 'pi pi-times'
+        };
+        return statusMap[status.toLowerCase()] || 'pi pi-circle-on';
     }
 
-    @HostListener('window:scroll', [])
-    onWindowScroll() {
-        const offset = 80;
-        for (const s of this.sections) {
-            const el = document.getElementById(s);
-            if (!el) continue;
-            const rect = el.getBoundingClientRect();
-            if (rect.top <= offset && rect.bottom > offset) {
-                this.activeSection = s;
-                break;
-            }
-        }
+    private getStageColor(status: string): string {
+        const colorMap: { [key: string]: string } = {
+            approved: '#16a34a',
+            pending: '#202a5a',
+            rejected: '#92193b',
+            draft: '#4e7cf2'
+        };
+        return colorMap[status.toLowerCase()] || '#9ca3af';
     }
 
-    openPreview(doc: any) {
-        this.previewName = doc?.documentName || doc?.type;
-        const ext = doc?.meta?.extension?.toLowerCase();
-        if (ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
-            this.previewUrl = `/api/v1/requests/${this.request?.id}/documents/${doc.id}/download`;
-        } else {
-            this.previewUrl = null;
-        }
-        this.previewVisible = true;
+    getQVCStatusText(status: string): string {
+        const statusMap: { [key: string]: string } = {
+            correct: 'Correct',
+            wrong: 'Wrong',
+            needs_correction: 'Needs Correction',
+            approved: 'Approved',
+            rejected: 'Rejected'
+        };
+        return statusMap[status] || status;
     }
 
-    downloadDocument(doc: any) {
-        const url = `/api/v1/requests/${this.request?.id}/documents/${doc.id}/download`;
-        window.open(url, '_blank');
+    // File Type Detection
+    isImage(filename: string | null): boolean {
+        return this.hasExtension(filename, this.FILE_EXTENSIONS.IMAGES);
+    }
+
+    isPdf(filename: string | null): boolean {
+        return this.hasExtension(filename, this.FILE_EXTENSIONS.PDF);
+    }
+
+    isWord(filename: string | null): boolean {
+        return this.hasExtension(filename, this.FILE_EXTENSIONS.WORD);
+    }
+
+    isExcel(filename: string | null): boolean {
+        return this.hasExtension(filename, this.FILE_EXTENSIONS.EXCEL);
+    }
+
+    isPowerPoint(filename: string | null): boolean {
+        return this.hasExtension(filename, this.FILE_EXTENSIONS.POWERPOINT);
+    }
+
+    isDocument(filename: string | null): boolean {
+        const docExtensions = [...this.FILE_EXTENSIONS.WORD, ...this.FILE_EXTENSIONS.EXCEL, ...this.FILE_EXTENSIONS.POWERPOINT, '.txt'];
+        return this.hasExtension(filename, docExtensions);
+    }
+
+    private hasExtension(filename: string | null, extensions: string[]): boolean {
+        if (!filename) return false;
+        return extensions.some((ext) => filename.toLowerCase().endsWith(ext));
+    }
+
+    getFileIcon(filename: string | null): string {
+        if (!filename) return 'pi pi-file';
+        if (this.isImage(filename)) return 'pi pi-image';
+        if (this.isPdf(filename)) return 'pi pi-file-pdf';
+        if (this.isWord(filename)) return 'pi pi-file-word';
+        if (this.isExcel(filename)) return 'pi pi-file-excel';
+        return 'pi pi-file';
+    }
+
+    getFileExtension(filename: string | null): string {
+        if (!filename) return 'FILE';
+        const parts = filename.split('.');
+        return parts.length > 1 ? parts.pop()!.toUpperCase() : 'FILE';
     }
 
     formatDocumentName(name: string): string {
@@ -879,19 +902,306 @@ export class ViewSingleApplicationComponent implements OnInit {
             .replace(/^\w/, (c) => c.toUpperCase());
     }
 
-    approveStage(stage: any) {
+    // Navigation
+    scrollTo(sectionId: string): void {
+        this.activeSection = sectionId;
+        const element = document.getElementById(sectionId);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    @HostListener('window:scroll', [])
+    onWindowScroll(): void {
+        const offset = 80;
+        for (const section of this.SECTIONS) {
+            const element = document.getElementById(section);
+            if (!element) continue;
+
+            const rect = element.getBoundingClientRect();
+            if (rect.top <= offset && rect.bottom > offset) {
+                this.activeSection = section;
+                break;
+            }
+        }
+    }
+
+    currentPdfBlob: Blob | null = null;
+
+    // Document Preview
+    openPreview(doc: any): void {
+        this.previewName = doc?.documentName?.replace('.enc', '') || doc?.type || 'Document';
+        this.previewVisible = true;
+        this.pdfLoading = false;
+        this.pdfError = false;
+        this.pdfSrc = '';
+        this.previewUrl = null; // Reset previewUrl for PDFs
+
+        this.currentPdfBlob = null;
+
+        this.reqService
+            .previewDocument(doc.id)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (response: Blob) => {
+                    console.log('Received blob:', response);
+                    console.log('Blob size:', response.size);
+                    console.log('Blob type:', response.type);
+                    this.currentPdfBlob = response;
+
+                    // Handle PDF files with ng2-pdf-viewer
+                    if (this.isPdf(this.previewName)) {
+                        this.loadPdf(response);
+                    } else {
+                        // For non-PDF files
+                        const blob = new Blob([response], { type: response.type });
+                        this.previewUrl = URL.createObjectURL(blob);
+                    }
+                },
+                error: (error) => {
+                    console.error('Error previewing document:', error);
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Preview Error',
+                        detail: 'Unable to preview document'
+                    });
+                    this.previewUrl = null;
+                    this.pdfError = true;
+                }
+            });
+    }
+
+    retryPdfLoad(): void {
+        if (this.currentPdfBlob) {
+            this.loadPdf(this.currentPdfBlob);
+        }
+    }
+
+    private checkPdfViewerState(): void {
+        console.log('PDF Viewer State:', {
+            pdfLoading: this.pdfLoading,
+            pdfError: this.pdfError,
+            pdfSrc: this.pdfSrc,
+            previewName: this.previewName,
+            showPdfViewer: this.showPdfViewer,
+            showPdfContainer: this.showPdfContainer
+        });
+    }
+
+    // PDF Viewer Methods
+    loadPdf(blob: Blob): void {
+        this.pdfLoading = true;
+        this.pdfError = false;
+        this.pdfSrc = '';
+
+        console.log('Starting PDF load...');
+
+        // Use setTimeout to ensure the loading state is set
+        setTimeout(() => {
+            try {
+                // Create blob URL
+                const pdfUrl = URL.createObjectURL(blob);
+                this.pdfSrc = pdfUrl;
+                console.log('PDF source set:', pdfUrl);
+
+                // Force change detection
+                this.cdRef.detectChanges();
+
+                // Set a timeout to auto-complete loading (fallback)
+                setTimeout(() => {
+                    if (this.pdfLoading) {
+                        console.log('Auto-completing PDF load (fallback)');
+                        this.pdfLoading = false;
+                        this.cdRef.detectChanges();
+                    }
+                }, 2000);
+            } catch (error) {
+                console.error('Error loading PDF:', error);
+                this.pdfError = true;
+                this.pdfLoading = false;
+                this.cdRef.detectChanges();
+            }
+        });
+    }
+
+    getFallbackPdfUrl(): string {
+        if (this.currentPdfBlob) {
+            return URL.createObjectURL(this.currentPdfBlob);
+        }
+        return '';
+    }
+
+    onPdfLoad(event: any): void {
+        console.log('✅ PDF loaded successfully!', event);
+        this.pdfLoading = false;
+        this.cdRef.detectChanges();
+    }
+
+    onPdfError(error: any): void {
+        console.error('❌ PDF loading error:', error);
+        this.pdfError = true;
+        this.pdfLoading = false;
+        this.cdRef.detectChanges();
+    }
+
+    // SIMPLIFIED visibility check
+    get showPdfViewer(): boolean {
+        return !!this.pdfSrc && !this.pdfLoading && !this.pdfError;
+    }
+
+    
+    onTextLayerRendered(event: any): void {
+        console.log('PDF text layer rendered:', event);
+    }
+
+    // Add this method to check if we should show PDF container
+    get showPdfContainer(): boolean {
+        return this.isPdf(this.previewName);
+    }
+
+    onPageRendered(event: any): void {
+        // PDF page rendered successfully
+        console.log('PDF page rendered:', event);
+    }
+
+    // Zoom controls for PDF
+    zoomIn(): void {
+        this.pdfZoom += 0.1;
+    }
+
+    zoomOut(): void {
+        if (this.pdfZoom > 0.2) {
+            this.pdfZoom -= 0.1;
+        }
+    }
+
+    resetZoom(): void {
+        this.pdfZoom = 1.0;
+    }
+
+    // Stage Actions
+    approveStage(stage: ApplicationStage): void {
         if (!stage) return;
         console.log(`Approved stage: ${stage.name}`);
         stage.status = 'Approved';
-        stage.color = this.getColor('approved');
-        stage.icon = this.getIcon('approved');
+        stage.color = this.getStageColor('approved');
+        stage.icon = this.getStageIcon('approved');
     }
 
-    rejectStage(stage: any) {
+    rejectStage(stage: ApplicationStage): void {
         if (!stage) return;
         console.log(`Rejected stage: ${stage.name}`);
         stage.status = 'Rejected';
-        stage.color = this.getColor('rejected');
-        stage.icon = this.getIcon('rejected');
+        stage.color = this.getStageColor('rejected');
+        stage.icon = this.getStageIcon('rejected');
+    }
+
+    // QVC Progress Calculation
+    private calculateQVCProgress(): void {
+        const allBasicFields = [...this.personalFields, ...this.passportFields, ...this.contactFields, ...this.employmentFields];
+
+        const counts = {
+            basic: allBasicFields.length,
+            education: this.educationData.length,
+            previousJobs: this.previousJobsData.length,
+            residences: this.residencesData.length,
+            nationalities: this.otherNationalitiesData.length,
+            countriesVisited: this.countriesVisitedData.length,
+            family: this.familyMembersData.length,
+            documents: this.request?.documents?.length || 0
+        };
+
+        this.qvcProgress.total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+
+        const checkedCounts = {
+            basic: allBasicFields.filter((f) => f.qvcStatus).length,
+            education: this.educationData.filter((e) => e.qvcStatus).length,
+            previousJobs: this.previousJobsData.filter((j) => j.qvcStatus).length,
+            residences: this.residencesData.filter((r) => r.qvcStatus).length,
+            nationalities: this.otherNationalitiesData.filter((n) => n.qvcStatus).length,
+            countriesVisited: this.countriesVisitedData.filter((c) => c.qvcStatus).length,
+            family: this.familyMembersData.filter((f) => f.qvcStatus).length,
+            documents: this.request?.documents?.filter((d: any) => d.qvcStatus)?.length || 0
+        };
+
+        this.qvcProgress.checked = Object.values(checkedCounts).reduce((sum, count) => sum + count, 0);
+    }
+
+    private loadExistingQVCChecks(): void {
+        if (!this.request?.qvc?.qvc_checks) return;
+
+        const allFields = [...this.personalFields, ...this.passportFields, ...this.contactFields, ...this.employmentFields];
+
+        this.request.qvc.qvc_checks.forEach((check: QVCCheck) => {
+            // Load basic fields
+            const field = allFields.find((f) => f.fieldPath === check.fieldPath);
+            if (field) {
+                field.qvcStatus = check.status;
+                field.qvcComment = check.commentsEn;
+            }
+
+            // Load education QVC status
+            this.loadArrayQVCCheck(check, 'employmentAndEducation.educations', this.educationData);
+
+            // Load previous jobs QVC status
+            this.loadArrayQVCCheck(check, 'employmentAndEducation.previousJobs', this.previousJobsData);
+
+            // Load residences QVC status
+            this.loadArrayQVCCheck(check, 'ResidencyAndTravelAndFamily.residences', this.residencesData);
+
+            // Load other nationalities QVC status
+            this.loadArrayQVCCheck(check, 'ResidencyAndTravelAndFamily.otherNationalities', this.otherNationalitiesData);
+
+            // Load countries visited QVC status
+            this.loadArrayQVCCheck(check, 'ResidencyAndTravelAndFamily.countriesVisitedLast10Years', this.countriesVisitedData);
+
+            // Load family members QVC status
+            this.loadArrayQVCCheck(check, 'ResidencyAndTravelAndFamily.familyMembers', this.familyMembersData);
+
+            // Load documents QVC status
+            if (check.fieldPath.startsWith('documents.')) {
+                const docType = check.fieldPath.replace('documents.', '');
+                const doc = this.request.documents.find((d: any) => d.type === docType);
+                if (doc) {
+                    doc.qvcStatus = check.status;
+                }
+            }
+        });
+    }
+
+    private loadArrayQVCCheck(check: QVCCheck, arrayPath: string, targetArray: any[]): void {
+        const regex = new RegExp(`${arrayPath}\\[(\\d+)\\]`);
+        const match = check.fieldPath.match(regex);
+
+        if (match && targetArray[parseInt(match[1])]) {
+            targetArray[parseInt(match[1])].qvcStatus = check.status;
+            targetArray[parseInt(match[1])].qvcComment = check.commentsEn;
+        }
+    }
+
+    getFileTypeInfo(filename: string | null): string {
+        if (!filename) return 'Unknown file type';
+
+        if (this.isImage(filename)) return 'Image File';
+        if (this.isPdf(filename)) return 'PDF Document';
+        if (this.isWord(filename)) return 'Microsoft Word Document';
+        if (this.isExcel(filename)) return 'Microsoft Excel Spreadsheet';
+        if (this.isPowerPoint(filename)) return 'Microsoft PowerPoint';
+
+        return 'Document File';
+    }
+
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
+        this.removeSecurityProtection();
+
+        // Clean up object URLs
+        if (this.previewUrl) {
+            URL.revokeObjectURL(this.previewUrl);
+        }
+        if (typeof this.pdfSrc === 'string' && this.pdfSrc.startsWith('blob:')) {
+            URL.revokeObjectURL(this.pdfSrc);
+        }
     }
 }
