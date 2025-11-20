@@ -18,6 +18,7 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { PdfViewerModule } from 'ng2-pdf-viewer';
 import * as pdfjsLib from 'pdfjs-dist';
+import { Divider } from 'primeng/divider';
 
 // Interfaces for type safety
 interface QVCCheck {
@@ -67,7 +68,7 @@ type QVCStatus = 'correct' | 'wrong' | 'needs_correction' | 'approved' | 'reject
 @Component({
     selector: 'app-view-single-application',
     standalone: true,
-    imports: [ImageModule, CommonModule, RouterModule, CardModule, ButtonModule, TagModule, DialogModule, TooltipModule, SelectModule, TextareaModule, FormsModule, PdfViewerModule],
+    imports: [ImageModule, CommonModule, RouterModule, CardModule, ButtonModule, TagModule, DialogModule, TooltipModule, SelectModule, TextareaModule, FormsModule, PdfViewerModule, Divider],
     templateUrl: './view-single-application.component.html',
     styleUrls: ['./view-single-application.component.scss']
 })
@@ -79,7 +80,10 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     stages: ApplicationStage[] = [];
     activeSection = 'overview';
 
-    readonly SECTIONS: string[] = ['overview', 'personal', 'passport', 'contact', 'employment', 'previousJobs', 'education', 'residences', 'otherNationalities', 'countriesVisited', 'family', 'documents', 'timeline'];
+    identificationFields: FieldData[] = [];
+    qatarResidentFields: FieldData[] = [];
+
+    readonly SECTIONS: string[] = ['overview', 'personal', 'employment', 'residency', 'documents', 'qvc'];
 
     // Preview state
     previewVisible = false;
@@ -185,6 +189,9 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         this.buildFieldArrays();
         this.calculateQVCProgress();
         this.initializeSecurityProtection();
+
+        // Set default section to overview
+        this.activeSection = 'overview';
     }
 
     private initializeStages(): void {
@@ -226,6 +233,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         const passport = this.request?.personalInfo?.passportDetails || {};
         const contact = this.request?.personalInfo?.contactInfo || {};
         const employment = this.request?.employmentAndEducation?.employmentDetails || {};
+        const identification = this.request?.metas || {};
 
         // Initialize data arrays
         this.educationData = this.request?.employmentAndEducation?.educations || [];
@@ -236,62 +244,89 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         this.countriesVisitedData = this.request?.ResidencyAndTravelAndFamily?.countriesVisitedLast10Years || [];
 
         // Build field arrays
+        this.identificationFields = this.buildIdentificationFields(identification);
+        console.log(this.identificationFields);
+
         this.personalFields = this.buildPersonalFields(pi);
         this.passportFields = this.buildPassportFields(passport);
         this.contactFields = this.buildContactFields(contact);
         this.employmentFields = this.buildEmploymentFields(employment);
+        this.qatarResidentFields = this.buildQatarResidentFields(pi);
 
         this.loadExistingQVCChecks();
     }
 
+    private buildIdentificationFields(identificationData: any): FieldData[] {
+        return [
+            { label: 'Category', value: identificationData.category || null, fieldPath: 'metas.category' },
+            { label: 'Sub Category', value: identificationData.subCategory || null, fieldPath: 'metas.subCategory' },
+            { label: 'Sector', value: identificationData.sector || null, fieldPath: 'metas.sector' },
+            { label: 'Activity', value: identificationData.activity || null, fieldPath: 'metas.activity' },
+            { label: 'Sub Activity', value: identificationData.subActivity || null, fieldPath: 'metas.subActivity' },
+            { label: 'Entity', value: identificationData.entity || null, fieldPath: 'metas.entity' },
+            { label: 'Incubator', value: identificationData.incubator || null, fieldPath: 'metas.incubator' }
+        ];
+    }
+
+    private buildQatarResidentFields(personalInfo: any): FieldData[] {
+        if (!personalInfo.areYouQatarResident) return [];
+
+        return [
+            { label: 'QID Type', value: personalInfo.qidType || null, fieldPath: 'personalInfo.applicantInfo.qidType' },
+            { label: 'QID Number', value: personalInfo.qidNumber || null, fieldPath: 'personalInfo.applicantInfo.qidNumber' },
+            { label: 'Work Permit', value: personalInfo.workPermit || null, fieldPath: 'personalInfo.applicantInfo.workPermit' },
+            { label: 'Maintain Work Permit', value: personalInfo.maintainWorkPermit || null, fieldPath: 'personalInfo.applicantInfo.maintainWorkPermit' }
+        ];
+    }
+
     private buildPersonalFields(personalInfo: any): FieldData[] {
         return [
-            { label: 'Name (EN)', value: personalInfo.nameEn || '-', fieldPath: 'personalInfo.applicantInfo.nameEn' },
-            { label: 'Name (AR)', value: personalInfo.nameAr || '-', fieldPath: 'personalInfo.applicantInfo.nameAr' },
-            { label: 'Gender', value: personalInfo.gender || '-', fieldPath: 'personalInfo.applicantInfo.gender' },
+            { label: 'Name (EN)', value: personalInfo.nameEn || null, fieldPath: 'personalInfo.applicantInfo.nameEn' },
+            { label: 'Name (AR)', value: personalInfo.nameAr || null, fieldPath: 'personalInfo.applicantInfo.nameAr' },
+            { label: 'Gender', value: personalInfo.gender || null, fieldPath: 'personalInfo.applicantInfo.gender' },
             { label: 'Date of Birth', value: this.formatDate(personalInfo.dob), fieldPath: 'personalInfo.applicantInfo.dob' },
-            { label: 'Nationality', value: personalInfo.nationality || '-', fieldPath: 'personalInfo.applicantInfo.nationality' },
-            { label: 'Place of Birth', value: personalInfo.placeOfBirth || '-', fieldPath: 'personalInfo.applicantInfo.placeOfBirth' },
-            { label: 'Religion', value: personalInfo.religion || '-', fieldPath: 'personalInfo.applicantInfo.religion' },
-            { label: 'Marital Status', value: personalInfo.maritalStatus || '-', fieldPath: 'personalInfo.applicantInfo.maritalStatus' },
-            { label: 'Current Country', value: personalInfo.currentCountry || '-', fieldPath: 'personalInfo.applicantInfo.currentCountry' },
-            { label: 'Short Bio', value: personalInfo.shortBio || '-', fieldPath: 'personalInfo.applicantInfo.shortBio' },
-            { label: 'Arabic Proficiency', value: personalInfo.langProficiencyAr || '-', fieldPath: 'personalInfo.applicantInfo.langProficiencyAr' },
-            { label: 'English Proficiency', value: personalInfo.langProficiencyEn || '-', fieldPath: 'personalInfo.applicantInfo.langProficiencyEn' }
+            { label: 'Nationality', value: personalInfo.nationality || null, fieldPath: 'personalInfo.applicantInfo.nationality' },
+            { label: 'Place of Birth', value: personalInfo.placeOfBirth || null, fieldPath: 'personalInfo.applicantInfo.placeOfBirth' },
+            { label: 'Religion', value: personalInfo.religion || null, fieldPath: 'personalInfo.applicantInfo.religion' },
+            { label: 'Marital Status', value: personalInfo.maritalStatus || null, fieldPath: 'personalInfo.applicantInfo.maritalStatus' },
+            { label: 'Current Country', value: personalInfo.currentCountry || null, fieldPath: 'personalInfo.applicantInfo.currentCountry' },
+            { label: 'Short Bio', value: personalInfo.shortBio || null, fieldPath: 'personalInfo.applicantInfo.shortBio' },
+            { label: 'Arabic Proficiency', value: personalInfo.langProficiencyAr || null, fieldPath: 'personalInfo.applicantInfo.langProficiencyAr' },
+            { label: 'English Proficiency', value: personalInfo.langProficiencyEn || null, fieldPath: 'personalInfo.applicantInfo.langProficiencyEn' }
         ];
     }
 
     private buildPassportFields(passportInfo: any): FieldData[] {
         return [
-            { label: 'Passport #', value: passportInfo.number || this.request?.passportNumber || '-', fieldPath: 'personalInfo.passportDetails.number' },
-            { label: 'Type', value: passportInfo.type || '-', fieldPath: 'personalInfo.passportDetails.type' },
-            { label: 'Issue Place', value: passportInfo.issuePlace || '-', fieldPath: 'personalInfo.passportDetails.issuePlace' },
-            { label: 'Issue Country', value: passportInfo.issueCountry || '-', fieldPath: 'personalInfo.passportDetails.issueCountry' },
+            { label: 'Passport #', value: passportInfo.number || this.request?.passportNumber || null, fieldPath: 'personalInfo.passportDetails.number' },
+            { label: 'Type', value: passportInfo.type || null, fieldPath: 'personalInfo.passportDetails.type' },
+            { label: 'Issue Place', value: passportInfo.issuePlace || null, fieldPath: 'personalInfo.passportDetails.issuePlace' },
+            { label: 'Issue Country', value: passportInfo.issueCountry || null, fieldPath: 'personalInfo.passportDetails.issueCountry' },
             { label: 'Issue Date', value: this.formatDate(passportInfo.issueDate), fieldPath: 'personalInfo.passportDetails.issueDate' },
             { label: 'Expiry Date', value: this.formatDate(passportInfo.expiryDate), fieldPath: 'personalInfo.passportDetails.expiryDate' },
-            { label: 'Issued By', value: passportInfo.issueBy || '-', fieldPath: 'personalInfo.passportDetails.issueBy' }
+            { label: 'Issued By', value: passportInfo.issueBy || null, fieldPath: 'personalInfo.passportDetails.issueBy' }
         ];
     }
 
     private buildContactFields(contactInfo: any): FieldData[] {
         return [
-            { label: 'Email', value: contactInfo.email || this.request?.email || '-', fieldPath: 'personalInfo.contactInfo.email' },
-            { label: 'Mobile', value: contactInfo.mobile || this.request?.mobileNumber || '-', fieldPath: 'personalInfo.contactInfo.mobile' },
-            { label: 'Phone', value: contactInfo.phone || '-', fieldPath: 'personalInfo.contactInfo.phone' },
-            { label: 'Permanent Address', value: contactInfo.permanentAddress || '-', fieldPath: 'personalInfo.contactInfo.permanentAddress' },
-            { label: 'PO Box', value: contactInfo.poBox || '-', fieldPath: 'personalInfo.contactInfo.poBox' },
-            { label: 'Qatar Address', value: contactInfo.qatarAddress || '-', fieldPath: 'personalInfo.contactInfo.qatarAddress' }
+            { label: 'Email', value: contactInfo.email || this.request?.email || null, fieldPath: 'personalInfo.contactInfo.email' },
+            { label: 'Mobile', value: contactInfo.mobile || this.request?.mobileNumber || null, fieldPath: 'personalInfo.contactInfo.mobile' },
+            { label: 'Phone', value: contactInfo.phone || null, fieldPath: 'personalInfo.contactInfo.phone' },
+            { label: 'Permanent Address', value: contactInfo.permanentAddress || null, fieldPath: 'personalInfo.contactInfo.permanentAddress' },
+            { label: 'PO Box', value: contactInfo.poBox || null, fieldPath: 'personalInfo.contactInfo.poBox' },
+            { label: 'Qatar Address', value: contactInfo.qatarAddress || null, fieldPath: 'personalInfo.contactInfo.qatarAddress' }
         ];
     }
 
     private buildEmploymentFields(employmentInfo: any): FieldData[] {
         return [
-            { label: 'Company Name', value: employmentInfo.companyName || '-', fieldPath: 'employmentAndEducation.employmentDetails.companyName' },
-            { label: 'Share of Capital', value: employmentInfo.shareOfTheCapital || '-', fieldPath: 'employmentAndEducation.employmentDetails.shareOfTheCapital' },
-            { label: 'Amount of Capital', value: employmentInfo.amountOfCapital || '-', fieldPath: 'employmentAndEducation.employmentDetails.amountOfCapital' },
-            { label: 'Profession', value: employmentInfo.profession || '-', fieldPath: 'employmentAndEducation.employmentDetails.profession' },
-            { label: 'Sponsor Name', value: employmentInfo.nameOfSponsor || '-', fieldPath: 'employmentAndEducation.employmentDetails.nameOfSponsor' },
-            { label: 'Sponsor Address', value: employmentInfo.addressOfSponsor || '-', fieldPath: 'employmentAndEducation.employmentDetails.addressOfSponsor' }
+            { label: 'Company Name', value: employmentInfo.companyName || null, fieldPath: 'employmentAndEducation.employmentDetails.companyName' },
+            { label: 'Share of Capital', value: employmentInfo.shareOfTheCapital || null, fieldPath: 'employmentAndEducation.employmentDetails.shareOfTheCapital' },
+            { label: 'Amount of Capital', value: employmentInfo.amountOfCapital || null, fieldPath: 'employmentAndEducation.employmentDetails.amountOfCapital' },
+            { label: 'Profession', value: employmentInfo.profession || null, fieldPath: 'employmentAndEducation.employmentDetails.profession' },
+            { label: 'Sponsor Name', value: employmentInfo.nameOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.nameOfSponsor' },
+            { label: 'Sponsor Address', value: employmentInfo.addressOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.addressOfSponsor' }
         ];
     }
 
@@ -404,10 +439,21 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
 
     verifySection(section: string): void {
         const sectionHandlers: { [key: string]: () => void } = {
-            personalInfo: () => this.personalFields.forEach((field) => !field.qvcStatus && this.markFieldCorrect(field)),
-            passportDetails: () => this.passportFields.forEach((field) => !field.qvcStatus && this.markFieldCorrect(field)),
-            contactInfo: () => this.contactFields.forEach((field) => !field.qvcStatus && this.markFieldCorrect(field)),
-            employmentDetails: () => this.employmentFields.forEach((field) => !field.qvcStatus && this.markFieldCorrect(field)),
+            personalInfo: () => {
+                [...this.identificationFields, ...this.personalFields, ...this.contactFields, ...this.passportFields].forEach((field) => !field.qvcStatus && this.markFieldCorrect(field));
+            },
+            employmentEducation: () => {
+                this.employmentFields.forEach((field) => !field.qvcStatus && this.markFieldCorrect(field));
+                this.previousJobsData.forEach((_, index) => !this.previousJobsData[index].qvcStatus && this.markPreviousJobCorrect(index));
+                this.educationData.forEach((_, index) => !this.educationData[index].qvcStatus && this.markEducationCorrect(index));
+            },
+            residencyTravelFamily: () => {
+                this.residencesData.forEach((_, index) => !this.residencesData[index].qvcStatus && this.markResidenceCorrect(index));
+                this.otherNationalitiesData.forEach((_, index) => !this.otherNationalitiesData[index].qvcStatus && this.markOtherNationalityCorrect(index));
+                this.countriesVisitedData.forEach((_, index) => !this.countriesVisitedData[index].qvcStatus && this.markCountryVisitCorrect(index));
+                this.familyMembersData.forEach((_, index) => !this.familyMembersData[index].qvcStatus && this.markFamilyMemberCorrect(index));
+            },
+            // Keep existing specific section handlers
             previousJobs: () => this.previousJobsData.forEach((_, index) => !this.previousJobsData[index].qvcStatus && this.markPreviousJobCorrect(index)),
             education: () => this.educationData.forEach((_, index) => !this.educationData[index].qvcStatus && this.markEducationCorrect(index)),
             residences: () => this.residencesData.forEach((_, index) => !this.residencesData[index].qvcStatus && this.markResidenceCorrect(index)),
@@ -911,20 +957,20 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         }
     }
 
-    @HostListener('window:scroll', [])
-    onWindowScroll(): void {
-        const offset = 80;
-        for (const section of this.SECTIONS) {
-            const element = document.getElementById(section);
-            if (!element) continue;
+    // @HostListener('window:scroll', [])
+    // onWindowScroll(): void {
+    //     const offset = 80;
+    //     for (const section of this.SECTIONS) {
+    //         const element = document.getElementById(section);
+    //         if (!element) continue;
 
-            const rect = element.getBoundingClientRect();
-            if (rect.top <= offset && rect.bottom > offset) {
-                this.activeSection = section;
-                break;
-            }
-        }
-    }
+    //         const rect = element.getBoundingClientRect();
+    //         if (rect.top <= offset && rect.bottom > offset) {
+    //             this.activeSection = section;
+    //             break;
+    //         }
+    //     }
+    // }
 
     currentPdfBlob: Blob | null = null;
 
@@ -1049,7 +1095,6 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         return !!this.pdfSrc && !this.pdfLoading && !this.pdfError;
     }
 
-    
     onTextLayerRendered(event: any): void {
         console.log('PDF text layer rendered:', event);
     }
@@ -1203,5 +1248,41 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         if (typeof this.pdfSrc === 'string' && this.pdfSrc.startsWith('blob:')) {
             URL.revokeObjectURL(this.pdfSrc);
         }
+    }
+
+    hasEmploymentDetails(): boolean {
+        const employment = this.request?.employmentAndEducation?.employmentDetails || {};
+        return Object.values(employment).some((value) => value !== null && value !== '');
+    }
+
+    // Helper method to get applicant name
+    getApplicantName(): string {
+        const nameEn = this.request?.personalInfo?.applicantInfo?.nameEn;
+        const nameAr = this.request?.personalInfo?.applicantInfo?.nameAr;
+        return nameEn || nameAr || 'N/A';
+    }
+
+    // Helper method for status severity
+    getStatusSeverity(status: string): string {
+        const statusMap: { [key: string]: string } = {
+            approved: 'success',
+            pending: 'warning',
+            draft: 'info',
+            rejected: 'danger'
+        };
+        return statusMap[status?.toLowerCase()] || 'secondary';
+    }
+
+    // Helper method for QVC status severity
+    getQVCStatusSeverity(status: string): string {
+        const statusMap: { [key: string]: string } = {
+            approved: 'success',
+            correct: 'success',
+            pending: 'warning',
+            needs_correction: 'warning',
+            rejected: 'danger',
+            wrong: 'danger'
+        };
+        return statusMap[status?.toLowerCase()] || 'secondary';
     }
 }
