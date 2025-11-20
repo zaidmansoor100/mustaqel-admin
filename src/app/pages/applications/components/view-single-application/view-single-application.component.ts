@@ -371,6 +371,16 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         return dateString ? new Date(dateString).toLocaleDateString() : '-';
     }
 
+    // Check if array has any non-null/non-empty values
+    hasValidArrayData(array: any[]): boolean {
+        if (!array || array.length === 0) return false;
+
+        return array.some((item) => {
+            // Check if any property in the item has a non-null, non-empty value
+            return Object.values(item).some((value) => value !== null && value !== '' && value !== undefined && value !== 'null' && value !== '-' && !(Array.isArray(value) && value.length === 0));
+        });
+    }
+
     // Security Implementation
     private initializeSecurityProtection(): void {
         if (!isPlatformBrowser(this.platformId)) return;
@@ -490,14 +500,15 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
                 this.countriesVisitedData.forEach((_, index) => !this.countriesVisitedData[index].qvcStatus && this.markCountryVisitCorrect(index));
                 this.familyMembersData.forEach((_, index) => !this.familyMembersData[index].qvcStatus && this.markFamilyMemberCorrect(index));
             },
-            // Keep existing specific section handlers
+            documents: () => this.request.documents.forEach((_: any, index: number) => !this.request.documents[index].qvcStatus && this.markDocumentCorrect(index)),
+
+            // Individual section handlers for specific arrays
             previousJobs: () => this.previousJobsData.forEach((_, index) => !this.previousJobsData[index].qvcStatus && this.markPreviousJobCorrect(index)),
             education: () => this.educationData.forEach((_, index) => !this.educationData[index].qvcStatus && this.markEducationCorrect(index)),
             residences: () => this.residencesData.forEach((_, index) => !this.residencesData[index].qvcStatus && this.markResidenceCorrect(index)),
             otherNationalities: () => this.otherNationalitiesData.forEach((_, index) => !this.otherNationalitiesData[index].qvcStatus && this.markOtherNationalityCorrect(index)),
             countriesVisited: () => this.countriesVisitedData.forEach((_, index) => !this.countriesVisitedData[index].qvcStatus && this.markCountryVisitCorrect(index)),
-            familyMembers: () => this.familyMembersData.forEach((_, index) => !this.familyMembersData[index].qvcStatus && this.markFamilyMemberCorrect(index)),
-            documents: () => this.request.documents.forEach((_: any, index: number) => !this.request.documents[index].qvcStatus && this.markDocumentCorrect(index))
+            familyMembers: () => this.familyMembersData.forEach((_, index) => !this.familyMembersData[index].qvcStatus && this.markFamilyMemberCorrect(index))
         };
 
         if (sectionHandlers[section]) {
@@ -507,6 +518,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
                 summary: 'Section Verified',
                 detail: `${section} has been verified as correct`
             });
+            this.calculateQVCProgress(); // Recalculate progress after verification
         }
     }
 
@@ -514,7 +526,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         field.qvcStatus = 'correct';
         field.qvcComment = 'Field is correct';
         this.addQVCCheck(field, 'correct', 'Field is correct', 'الحقل صحيح');
-        this.calculateQVCProgress();
+        this.calculateQVCProgress(); // Add this line
     }
 
     markFieldWrong(field: FieldData): void {
@@ -625,21 +637,21 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         return 'approved';
     }
 
-    saveQVCProgress(): void {
-        const progress = {
-            requestId: this.request.id,
-            checks: this.qvcChecks,
-            timestamp: new Date().toISOString()
-        };
+    // saveQVCProgress(): void {
+    //     const progress = {
+    //         requestId: this.request.id,
+    //         checks: this.qvcChecks,
+    //         timestamp: new Date().toISOString()
+    //     };
 
-        localStorage.setItem(`qvc-progress-${this.request.id}`, JSON.stringify(progress));
+    //     localStorage.setItem(`qvc-progress-${this.request.id}`, JSON.stringify(progress));
 
-        this.messageService.add({
-            severity: 'info',
-            summary: 'Progress Saved',
-            detail: 'QVC progress has been saved locally'
-        });
-    }
+    //     this.messageService.add({
+    //         severity: 'info',
+    //         summary: 'Progress Saved',
+    //         detail: 'QVC progress has been saved locally'
+    //     });
+    // }
 
     cancelQVC(): void {
         this.isQVCInProgress = false;
@@ -692,7 +704,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
             'Education record is correct',
             'سجل التعليم صحيح'
         );
-        this.calculateQVCProgress();
+        this.calculateQVCProgress(); // Add this line
     }
 
     markEducationNeedsCorrection(index: number): void {
@@ -884,6 +896,28 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
             },
             doc
         );
+    }
+
+    // Helper to check if section has data for QVC
+    shouldShowSectionVerification(section: string): boolean {
+        switch (section) {
+            case 'previousJobs':
+                return this.hasValidArrayData(this.previousJobsData);
+            case 'education':
+                return this.hasValidArrayData(this.educationData);
+            case 'residences':
+                return this.hasValidArrayData(this.residencesData);
+            case 'otherNationalities':
+                return this.hasValidArrayData(this.otherNationalitiesData);
+            case 'countriesVisited':
+                return this.hasValidArrayData(this.countriesVisitedData);
+            case 'familyMembers':
+                return this.hasValidArrayData(this.familyMembersData);
+            case 'documents':
+                return this.request?.documents?.length > 0;
+            default:
+                return true;
+        }
     }
 
     private promptForFieldCorrection(fieldData: QVCField, targetObject: any): void {
@@ -1180,33 +1214,41 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
 
     // QVC Progress Calculation
     private calculateQVCProgress(): void {
-        const allBasicFields = [...this.personalFields, ...this.passportFields, ...this.contactFields, ...this.employmentFields];
+        // Count basic fields (personal, passport, contact, employment, identification)
+        const basicFieldsCount = [...this.personalFields, ...this.passportFields, ...this.contactFields, ...this.employmentFields, ...this.identificationFields, ...this.qatarResidentFields].length;
 
-        const counts = {
-            basic: allBasicFields.length,
-            education: this.educationData.length,
-            previousJobs: this.previousJobsData.length,
-            residences: this.residencesData.length,
-            nationalities: this.otherNationalitiesData.length,
-            countriesVisited: this.countriesVisitedData.length,
-            family: this.familyMembersData.length,
-            documents: this.request?.documents?.length || 0
-        };
+        // Count array items ONLY if they have valid data
+        const arrayItemsCount =
+            (this.hasValidArrayData(this.educationData) ? this.educationData.length : 0) +
+            (this.hasValidArrayData(this.previousJobsData) ? this.previousJobsData.length : 0) +
+            (this.hasValidArrayData(this.residencesData) ? this.residencesData.length : 0) +
+            (this.hasValidArrayData(this.otherNationalitiesData) ? this.otherNationalitiesData.length : 0) +
+            (this.hasValidArrayData(this.countriesVisitedData) ? this.countriesVisitedData.length : 0) +
+            (this.hasValidArrayData(this.familyMembersData) ? this.familyMembersData.length : 0);
 
-        this.qvcProgress.total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+        // Count documents (each document counts as 1)
+        const documentsCount = this.request?.documents?.length || 0;
 
-        const checkedCounts = {
-            basic: allBasicFields.filter((f) => f.qvcStatus).length,
-            education: this.educationData.filter((e) => e.qvcStatus).length,
-            previousJobs: this.previousJobsData.filter((j) => j.qvcStatus).length,
-            residences: this.residencesData.filter((r) => r.qvcStatus).length,
-            nationalities: this.otherNationalitiesData.filter((n) => n.qvcStatus).length,
-            countriesVisited: this.countriesVisitedData.filter((c) => c.qvcStatus).length,
-            family: this.familyMembersData.filter((f) => f.qvcStatus).length,
-            documents: this.request?.documents?.filter((d: any) => d.qvcStatus)?.length || 0
-        };
+        // Total fields to check
+        this.qvcProgress.total = basicFieldsCount + arrayItemsCount + documentsCount;
 
-        this.qvcProgress.checked = Object.values(checkedCounts).reduce((sum, count) => sum + count, 0);
+        // Count checked basic fields
+        const checkedBasicFields = [...this.personalFields, ...this.passportFields, ...this.contactFields, ...this.employmentFields, ...this.identificationFields, ...this.qatarResidentFields].filter((field) => field.qvcStatus).length;
+
+        // Count checked array items (only from valid arrays)
+        const checkedArrayItems =
+            (this.hasValidArrayData(this.educationData) ? this.educationData.filter((edu) => edu.qvcStatus).length : 0) +
+            (this.hasValidArrayData(this.previousJobsData) ? this.previousJobsData.filter((job) => job.qvcStatus).length : 0) +
+            (this.hasValidArrayData(this.residencesData) ? this.residencesData.filter((res) => res.qvcStatus).length : 0) +
+            (this.hasValidArrayData(this.otherNationalitiesData) ? this.otherNationalitiesData.filter((nat) => nat.qvcStatus).length : 0) +
+            (this.hasValidArrayData(this.countriesVisitedData) ? this.countriesVisitedData.filter((visit) => visit.qvcStatus).length : 0) +
+            (this.hasValidArrayData(this.familyMembersData) ? this.familyMembersData.filter((family) => family.qvcStatus).length : 0);
+
+        // Count checked documents
+        const checkedDocuments = this.request?.documents?.filter((doc: any) => doc.qvcStatus)?.length || 0;
+
+        // Total checked fields
+        this.qvcProgress.checked = checkedBasicFields + checkedArrayItems + checkedDocuments;
     }
 
     private loadExistingQVCChecks(): void {

@@ -302,11 +302,12 @@
         </div>
 
         <!-- Previous Jobs -->
-        <div class="mb-8" *ngIf="previousJobsData.length > 0">
+        <div class="mb-8" *ngIf="hasValidArrayData(previousJobsData)">
             <div class="flex justify-between items-center mb-4">
                 <h4 class="text-lg font-semibold text-secondary">Previous Jobs</h4>
                 <button pButton icon="pi pi-check" label="Verify All Jobs" class="p-button-outlined p-button-sm"
-                    *ngIf="isQVCInProgress" (click)="verifySection('previousJobs')">
+                    *ngIf="isQVCInProgress && shouldShowSectionVerification('previousJobs')"
+                    (click)="verifySection('previousJobs')">
                 </button>
             </div>
             <p-divider type="solid" style="margin-top: 0;" />
@@ -367,11 +368,12 @@
         </div>
 
         <!-- Education -->
-        <div class="mb-8" *ngIf="educationData.length > 0">
+        <div class="mb-8" *ngIf="hasValidArrayData(educationData)">
             <div class="flex justify-between items-center mb-4">
                 <h4 class="text-lg font-semibold text-secondary">Education</h4>
                 <button pButton icon="pi pi-check" label="Verify All Education" class="p-button-outlined p-button-sm"
-                    *ngIf="isQVCInProgress" (click)="verifySection('education')">
+                    *ngIf="isQVCInProgress && shouldShowSectionVerification('education')"
+                    (click)="verifySection('education')">
                 </button>
             </div>
             <p-divider type="solid" style="margin-top: 0;" />
@@ -444,11 +446,12 @@
         </div>
 
         <!-- Residences -->
-        <div class="mb-8" *ngIf="residencesData.length > 0">
+        <div class="mb-8" *ngIf="hasValidArrayData(residencesData)">
             <div class="flex justify-between items-center mb-4">
                 <h4 class="text-lg font-semibold text-secondary">Active Residencies</h4>
                 <button pButton icon="pi pi-check" label="Verify All Residencies" class="p-button-outlined p-button-sm"
-                    *ngIf="isQVCInProgress" (click)="verifySection('residences')">
+                    *ngIf="isQVCInProgress && shouldShowSectionVerification('residences')"
+                    (click)="verifySection('residences')">
                 </button>
             </div>
             <p-divider type="solid" style="margin-top: 0;" />
@@ -506,11 +509,12 @@
         </div>
 
         <!-- Other Nationalities -->
-        <div class="mb-8" *ngIf="otherNationalitiesData.length > 0">
+        <div class="mb-8" *ngIf="hasValidArrayData(otherNationalitiesData)">
             <div class="flex justify-between items-center mb-4">
                 <h4 class="text-lg font-semibold text-secondary">Other Nationalities</h4>
                 <button pButton icon="pi pi-check" label="Verify All Nationalities"
-                    class="p-button-outlined p-button-sm" *ngIf="isQVCInProgress"
+                    class="p-button-outlined p-button-sm"
+                    *ngIf="isQVCInProgress && shouldShowSectionVerification('otherNationalities')"
                     (click)="verifySection('otherNationalities')">
                 </button>
             </div>
@@ -576,11 +580,12 @@
         </div>
 
         <!-- Countries Visited -->
-        <div class="mb-8" *ngIf="countriesVisitedData.length > 0">
+        <div class="mb-8" *ngIf="hasValidArrayData(countriesVisitedData)">
             <div class="flex justify-between items-center mb-4">
                 <h4 class="text-lg font-semibold text-secondary">Countries Visited (Last 10 Years)</h4>
                 <button pButton icon="pi pi-check" label="Verify All Visits" class="p-button-outlined p-button-sm"
-                    *ngIf="isQVCInProgress" (click)="verifySection('countriesVisited')">
+                    *ngIf="isQVCInProgress && shouldShowSectionVerification('countriesVisited')"
+                    (click)="verifySection('countriesVisited')">
                 </button>
             </div>
             <p-divider type="solid" style="margin-top: 0;" />
@@ -637,11 +642,12 @@
         </div>
 
         <!-- Family Members -->
-        <div class="mb-8" *ngIf="familyMembersData.length > 0">
+        <div class="mb-8" *ngIf="hasValidArrayData(familyMembersData)">
             <div class="flex justify-between items-center mb-4">
                 <h4 class="text-lg font-semibold text-secondary">Family Members</h4>
                 <button pButton icon="pi pi-check" label="Verify All Family" class="p-button-outlined p-button-sm"
-                    *ngIf="isQVCInProgress" (click)="verifySection('familyMembers')">
+                    *ngIf="isQVCInProgress && shouldShowSectionVerification('familyMembers')"
+                    (click)="verifySection('familyMembers')">
                 </button>
             </div>
             <p-divider type="solid" style="margin-top: 0;" />
@@ -707,7 +713,8 @@
                 <p class="text-gray-600 text-sm">Uploaded supporting documents and files</p>
             </div>
             <button pButton icon="pi pi-check" label="Verify Section" class="p-button-outlined p-button-sm"
-                *ngIf="isQVCInProgress" (click)="verifySection('documents')">
+                *ngIf="isQVCInProgress && shouldShowSectionVerification('documents')"
+                (click)="verifySection('documents')">
             </button>
         </div>
 
@@ -717,27 +724,27 @@
                 <div class="flex items-center gap-3">
                     <!-- File type icon -->
                     <i [class]="getFileIcon(doc.documentName || doc.type) + ' text-xl'" [ngClass]="{
-                           'text-red-500': isPdf(doc.documentName || doc.type),
-                           'text-blue-500': isWord(doc.documentName || doc.type),
-                           'text-green-500': isExcel(doc.documentName || doc.type),
-                           'text-orange-500': isPowerPoint(doc.documentName || doc.type),
-                           'text-purple-500': isImage(doc.documentName || doc.type)
-                       }"></i>
+                       'text-red-500': isPdf(doc.documentName || doc.type),
+                       'text-blue-500': isWord(doc.documentName || doc.type),
+                       'text-green-500': isExcel(doc.documentName || doc.type),
+                       'text-orange-500': isPowerPoint(doc.documentName || doc.type),
+                       'text-purple-500': isImage(doc.documentName || doc.type)
+                   }"></i>
                     <div>
                         <span class="font-semibold block">{{ formatDocumentName(doc.type) }}</span>
                         <small class="text-gray-500 text-xs">
                             {{ getFileExtension(doc.documentName || doc.type) }} •
-                            {{ doc.uploadedAt | date:'short' }}
+                            {{ doc.created_at | date:'short' }}
                         </small>
                     </div>
                 </div>
 
                 <!-- QVC Status Display -->
                 <div *ngIf="doc.qvcStatus" class="text-xs mr-2" [ngClass]="{
-                         'text-green-600': doc.qvcStatus === 'correct',
-                         'text-red-600': doc.qvcStatus === 'wrong',
-                         'text-orange-600': doc.qvcStatus === 'needs_correction'
-                     }">
+                     'text-green-600': doc.qvcStatus === 'correct',
+                     'text-red-600': doc.qvcStatus === 'wrong',
+                     'text-orange-600': doc.qvcStatus === 'needs_correction'
+                 }">
                     {{ getQVCStatusText(doc.qvcStatus) }}
                 </div>
 
@@ -748,10 +755,15 @@
                     <button pButton icon="pi pi-download" class="p-button-sm p-button-text" pTooltip="Download"
                         tooltipPosition="top">
                     </button>
-                    <button pButton icon="pi pi-check" class="p-button-sm p-button-text p-button-success"
-                        pTooltip="Mark as Correct" tooltipPosition="top" *ngIf="isQVCInProgress"
-                        (click)="markDocumentCorrect(i)">
-                    </button>
+                    <div class="flex gap-1" *ngIf="isQVCInProgress">
+                        <button pButton icon="pi pi-check" class="p-button-sm p-button-text p-button-success"
+                            pTooltip="Mark as Correct" tooltipPosition="top" (click)="markDocumentCorrect(i)">
+                        </button>
+                        <button pButton icon="pi pi-times" class="p-button-sm p-button-text p-button-warning"
+                            pTooltip="Mark as Needs Correction" tooltipPosition="top"
+                            (click)="markDocumentNeedsCorrection(i)">
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -834,6 +846,27 @@
             </button>
         </div>
     </p-card>
+</div>
+
+
+<!-- QVC Action Bar -->
+<div *ngIf="isQVCInProgress" class="fixed bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 border z-50">
+    <div class="flex flex-col gap-2">
+        <h4 class="font-semibold">QVC Progress</h4>
+        <p>Fields Checked: {{ qvcProgress.checked }}/{{ qvcProgress.total }}</p>
+        <p class="text-xs text-gray-500" *ngIf="qvcProgress.checked < qvcProgress.total">
+            Complete all field checks to submit QVC
+        </p>
+        <div class="flex gap-2">
+            <!-- <button pButton icon="pi pi-save" label="Save Progress" class="p-button-info p-button-sm"
+                (click)="saveQVCProgress()"></button> -->
+            <button pButton icon="pi pi-check" label="Submit QVC" class="p-button-success p-button-sm"
+                [disabled]="qvcProgress.checked < qvcProgress.total || qvcProgress.total === 0"
+                (click)="submitQVC()"></button>
+            <button pButton icon="pi pi-times" label="Cancel QVC" class="p-button-danger p-button-sm"
+                (click)="cancelQVC()"></button>
+        </div>
+    </div>
 </div>
 
 <!-- QVC Details Dialog -->
