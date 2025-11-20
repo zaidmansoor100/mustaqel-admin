@@ -78,7 +78,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     // Component state
     request: any = null;
     stages: ApplicationStage[] = [];
-    activeSection = 'overview';
+    activeSection = 'personal';
 
     identificationFields: FieldData[] = [];
     qatarResidentFields: FieldData[] = [];
@@ -191,7 +191,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         this.initializeSecurityProtection();
 
         // Set default section to overview
-        this.activeSection = 'overview';
+        this.activeSection = 'personal';
     }
 
     private initializeStages(): void {
@@ -257,15 +257,23 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     }
 
     private buildIdentificationFields(identificationData: any): FieldData[] {
-        return [
-            { label: 'Category', value: identificationData.category || null, fieldPath: 'metas.category' },
-            { label: 'Sub Category', value: identificationData.subCategory || null, fieldPath: 'metas.subCategory' },
-            { label: 'Sector', value: identificationData.sector || null, fieldPath: 'metas.sector' },
-            { label: 'Activity', value: identificationData.activity || null, fieldPath: 'metas.activity' },
-            { label: 'Sub Activity', value: identificationData.subActivity || null, fieldPath: 'metas.subActivity' },
-            { label: 'Entity', value: identificationData.entity || null, fieldPath: 'metas.entity' },
-            { label: 'Incubator', value: identificationData.incubator || null, fieldPath: 'metas.incubator' }
+        const fieldMappings = [
+            { slug: 'catSlug', label: 'Category', fieldPath: 'metas.category', nameField: 'category' },
+            { slug: 'subCatSlug', label: 'Sub Category', fieldPath: 'metas.subCategory', nameField: 'subCategory' },
+            { slug: 'sectorSlug', label: 'Sector', fieldPath: 'metas.sector', nameField: 'sector' },
+            { slug: 'activitySlug', label: 'Activity', fieldPath: 'metas.activity', nameField: 'activity' },
+            { slug: 'subActivitySlug', label: 'Sub Activity', fieldPath: 'metas.subActivity', nameField: 'subActivity' },
+            { slug: 'entitySlug', label: 'Entity', fieldPath: 'metas.entity', nameField: 'entity' },
+            { slug: 'incubatorSlug', label: 'Incubator', fieldPath: 'metas.incubator', nameField: 'incubator' }
         ];
+
+        return fieldMappings
+            .filter((mapping) => identificationData[mapping.slug]) // Only include if slug exists
+            .map((mapping) => ({
+                label: mapping.label,
+                value: identificationData[mapping.nameField]?.name || identificationData[mapping.slug],
+                fieldPath: mapping.fieldPath
+            }));
     }
 
     private buildQatarResidentFields(personalInfo: any): FieldData[] {
@@ -309,25 +317,54 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     }
 
     private buildContactFields(contactInfo: any): FieldData[] {
-        return [
+        const fields: FieldData[] = [
             { label: 'Email', value: contactInfo.email || this.request?.email || null, fieldPath: 'personalInfo.contactInfo.email' },
             { label: 'Mobile', value: contactInfo.mobile || this.request?.mobileNumber || null, fieldPath: 'personalInfo.contactInfo.mobile' },
-            { label: 'Phone', value: contactInfo.phone || null, fieldPath: 'personalInfo.contactInfo.phone' },
-            { label: 'Permanent Address', value: contactInfo.permanentAddress || null, fieldPath: 'personalInfo.contactInfo.permanentAddress' },
-            { label: 'PO Box', value: contactInfo.poBox || null, fieldPath: 'personalInfo.contactInfo.poBox' },
-            { label: 'Qatar Address', value: contactInfo.qatarAddress || null, fieldPath: 'personalInfo.contactInfo.qatarAddress' }
+            { label: 'Phone', value: contactInfo.phone || 'N/A', fieldPath: 'personalInfo.contactInfo.phone' },
+            { label: 'Permanent Address', value: contactInfo.permanentAddress, fieldPath: 'personalInfo.contactInfo.permanentAddress' }
         ];
+
+        // Only add Qatar Address if areYouQatarResident is true
+        if (this.request?.personalInfo?.applicantInfo?.areYouQatarResident) {
+            fields.push(
+                {
+                    label: 'Qatar Address',
+                    value: contactInfo.qatarAddress || null,
+                    fieldPath: 'personalInfo.contactInfo.qatarAddress'
+                },
+                {
+                    label: 'PO Box',
+                    value: contactInfo.poBox || null,
+                    fieldPath: 'personalInfo.contactInfo.poBox'
+                }
+            );
+        }
+
+        return fields;
     }
 
     private buildEmploymentFields(employmentInfo: any): FieldData[] {
-        return [
-            { label: 'Company Name', value: employmentInfo.companyName || null, fieldPath: 'employmentAndEducation.employmentDetails.companyName' },
-            { label: 'Share of Capital', value: employmentInfo.shareOfTheCapital || null, fieldPath: 'employmentAndEducation.employmentDetails.shareOfTheCapital' },
-            { label: 'Amount of Capital', value: employmentInfo.amountOfCapital || null, fieldPath: 'employmentAndEducation.employmentDetails.amountOfCapital' },
-            { label: 'Profession', value: employmentInfo.profession || null, fieldPath: 'employmentAndEducation.employmentDetails.profession' },
-            { label: 'Sponsor Name', value: employmentInfo.nameOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.nameOfSponsor' },
-            { label: 'Sponsor Address', value: employmentInfo.addressOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.addressOfSponsor' }
-        ];
+        const catSlug = this.request?.metas?.catSlug;
+
+        const fieldMappings: { [key: string]: FieldData[] } = {
+            tal: [
+                { label: 'Profession', value: employmentInfo.profession || null, fieldPath: 'employmentAndEducation.employmentDetails.profession' },
+                { label: 'Sponsor Name', value: employmentInfo.nameOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.nameOfSponsor' },
+                { label: 'Sponsor Address', value: employmentInfo.addressOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.addressOfSponsor' }
+            ],
+            inv: [
+                { label: 'Company Name', value: employmentInfo.companyName || null, fieldPath: 'employmentAndEducation.employmentDetails.companyName' },
+                { label: 'Share of Capital', value: employmentInfo.shareOfTheCapital || null, fieldPath: 'employmentAndEducation.employmentDetails.shareOfTheCapital' },
+                { label: 'Amount of Capital', value: employmentInfo.amountOfCapital || null, fieldPath: 'employmentAndEducation.employmentDetails.amountOfCapital' }
+            ],
+            ent: [
+                { label: 'Profession', value: employmentInfo.profession || null, fieldPath: 'employmentAndEducation.employmentDetails.profession' },
+                { label: 'Sponsor Name', value: employmentInfo.nameOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.nameOfSponsor' },
+                { label: 'Sponsor Address', value: employmentInfo.addressOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.addressOfSponsor' }
+            ]
+        };
+
+        return fieldMappings[catSlug] || [];
     }
 
     private formatDate(dateString: string): string {

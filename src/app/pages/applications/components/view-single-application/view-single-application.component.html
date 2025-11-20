@@ -14,8 +14,8 @@
         <!-- Page Header -->
         <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6">
             <div>
-                <h2 class="text-2xl font-bold text-[#202a5a]">Application Details</h2>
-                <p class="text-gray-600 mt-1">View and manage applicant information</p>
+                <h2 class="text-2xl font-bold text-[#202a5a] !m-0">Application Details</h2>
+                <p class="text-gray-600 text-sm">View and manage applicant information</p>
             </div>
             <div class="flex gap-2 mt-2 md:mt-0">
                 <button pButton icon="pi pi-pencil" label="Edit Application" class="p-button-rounded p-button-info"
@@ -114,8 +114,8 @@
     <p-card class="shadow-md p-4" id="personal" *ngIf="activeSection === 'personal'">
         <div class="flex justify-between items-center mb-6">
             <div>
-                <h3 class="text-xl font-semibold text-[#202a5a]">Step 1: Personal Information</h3>
-                <p class="text-gray-600">Applicant's personal and identification details</p>
+                <h3 class="text-xl font-semibold text-[#202a5a] !m-0">Personal Information</h3>
+                <p class="text-gray-600 text-sm">Applicant's personal and identification details</p>
             </div>
             <button pButton icon="pi pi-check" label="Verify Section" class="p-button-outlined p-button-sm"
                 *ngIf="isQVCInProgress" (click)="verifySection('personalInfo')">
@@ -129,7 +129,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div *ngFor="let field of identificationFields" class="field-container">
                     <p class="font-semibold text-gray-700 mb-1">{{ field.label }}</p>
-                    <p class="text-gray-900">{{ field.value }}</p>
+                    <p class="text-gray-900">{{ field?.value }}</p>
                     <div *ngIf="isQVCInProgress" class="mt-2 flex gap-2">
                         <button pButton icon="pi pi-check" class="p-button-success p-button-sm"
                             (click)="markFieldCorrect(field)">
@@ -156,6 +156,32 @@
             <p-divider type="solid" style="margin-top: 0;" />
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div *ngFor="let field of personalFields" class="field-container">
+                    <p class="font-semibold text-gray-700 mb-1">{{ field.label }}</p>
+                    <p class="text-gray-900">{{ field.value }}</p>
+                    <div *ngIf="isQVCInProgress" class="mt-2 flex gap-2">
+                        <button pButton icon="pi pi-check" class="p-button-success p-button-sm"
+                            (click)="markFieldCorrect(field)">
+                        </button>
+                        <button pButton icon="pi pi-times" class="p-button-danger p-button-sm"
+                            (click)="markFieldWrong(field)">
+                        </button>
+                    </div>
+                    <div *ngIf="field.qvcStatus" class="text-xs mt-1" [ngClass]="{
+                             'text-green-600': field.qvcStatus === 'correct',
+                             'text-red-600': field.qvcStatus === 'wrong',
+                             'text-orange-600': field.qvcStatus === 'needs_correction'
+                         }">
+                        {{ getQVCStatusText(field.qvcStatus) }}
+                        <span *ngIf="field.qvcComment">- {{ field.qvcComment }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <h4 class="!text-sm font-semibold text-secondary !mb-2">Qatar Resident Information</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div *ngFor="let field of qatarResidentFields" class="field-container">
                     <p class="font-semibold text-gray-700 mb-1">{{ field.label }}</p>
                     <p class="text-gray-900">{{ field.value }}</p>
                     <div *ngIf="isQVCInProgress" class="mt-2 flex gap-2">
@@ -239,8 +265,8 @@
     <p-card class="shadow-md p-4" id="employment" *ngIf="activeSection === 'employment'">
         <div class="flex justify-between items-center mb-6">
             <div>
-                <h3 class="text-xl font-semibold text-[#202a5a]">Step 2: Employment & Education</h3>
-                <p class="text-gray-600">Employment history and educational qualifications</p>
+                <h3 class="text-xl font-semibold text-[#202a5a] !m-0">Employment & Education</h3>
+                <p class="text-gray-600 text-sm">Employment history and educational qualifications</p>
             </div>
             <button pButton icon="pi pi-check" label="Verify Section" class="p-button-outlined p-button-sm"
                 *ngIf="isQVCInProgress" (click)="verifySection('employmentEducation')">
@@ -284,33 +310,58 @@
                 </button>
             </div>
             <p-divider type="solid" style="margin-top: 0;" />
-            <div *ngFor="let job of previousJobsData; let i = index" class="mb-4 p-4 border rounded-lg bg-gray-50">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div><strong>Entity:</strong> {{ job.entity || '-' }}</div>
-                    <div><strong>Title:</strong> {{ job.title || '-' }}</div>
-                    <div><strong>Duration:</strong> {{ job.jobDuration || '-' }}</div>
-                    <div><strong>Country:</strong> {{ job.jobCountry || '-' }}</div>
-                    <div><strong>Status:</strong> {{ job.jobStatus || '-' }}</div>
-                </div>
 
-                <!-- QVC Status Display -->
-                <div *ngIf="job.qvcStatus" class="text-xs mt-2" [ngClass]="{
-                         'text-green-600': job.qvcStatus === 'correct',
-                         'text-red-600': job.qvcStatus === 'wrong',
-                         'text-orange-600': job.qvcStatus === 'needs_correction'
-                     }">
-                    {{ getQVCStatusText(job.qvcStatus) }}
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Entity</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Title</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Duration</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Country</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                *ngIf="isQVCInProgress">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr *ngFor="let job of previousJobsData; let i = index" class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ job.entity || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ job.title || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ job.jobDuration || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ job.jobCountry || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ job.jobStatus || '-' }}</td>
+                            <td class="px-4 py-3 text-sm" *ngIf="isQVCInProgress">
+                                <div class="flex gap-2">
+                                    <button pButton icon="pi pi-check" class="p-button-success p-button-sm"
+                                        (click)="markPreviousJobCorrect(i)" pTooltip="Mark Correct"
+                                        tooltipPosition="top">
+                                    </button>
+                                    <button pButton icon="pi pi-times" class="p-button-warning p-button-sm"
+                                        (click)="markPreviousJobNeedsCorrection(i)" pTooltip="Needs Correction"
+                                        tooltipPosition="top">
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- QVC Status Display for individual jobs (if needed) -->
+            <div *ngFor="let job of previousJobsData; let i = index" class="mt-2">
+                <div *ngIf="job.qvcStatus" class="text-xs p-2 rounded" [ngClass]="{
+                 'bg-green-50 text-green-600 border border-green-200': job.qvcStatus === 'correct',
+                 'bg-red-50 text-red-600 border border-red-200': job.qvcStatus === 'wrong',
+                 'bg-orange-50 text-orange-600 border border-orange-200': job.qvcStatus === 'needs_correction'
+             }">
+                    <strong>Job {{ i + 1 }}:</strong> {{ getQVCStatusText(job.qvcStatus) }}
                     <span *ngIf="job.qvcComment">- {{ job.qvcComment }}</span>
-                </div>
-
-                <!-- QVC Action Buttons -->
-                <div *ngIf="isQVCInProgress" class="mt-2 flex gap-2">
-                    <button pButton icon="pi pi-check" label="Correct" class="p-button-success p-button-sm"
-                        (click)="markPreviousJobCorrect(i)">
-                    </button>
-                    <button pButton icon="pi pi-times" label="Needs Correction" class="p-button-warning p-button-sm"
-                        (click)="markPreviousJobNeedsCorrection(i)">
-                    </button>
                 </div>
             </div>
         </div>
@@ -324,33 +375,57 @@
                 </button>
             </div>
             <p-divider type="solid" style="margin-top: 0;" />
-            <div *ngFor="let edu of educationData; let i = index" class="mb-4 p-4 border rounded-lg bg-gray-50">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    <div><strong>Qualification:</strong> {{ edu.qualification || '-' }}</div>
-                    <div><strong>University:</strong> {{ edu.university || '-' }}</div>
-                    <div><strong>Specialization:</strong> {{ edu.specialization || '-' }}</div>
-                    <div><strong>Period:</strong> {{ edu.eduPeriod || '-' }}</div>
-                    <div><strong>Country:</strong> {{ edu.eduCountry || '-' }}</div>
-                </div>
 
-                <!-- QVC Status Display -->
-                <div *ngIf="edu.qvcStatus" class="text-xs mt-2" [ngClass]="{
-                         'text-green-600': edu.qvcStatus === 'correct',
-                         'text-red-600': edu.qvcStatus === 'wrong',
-                         'text-orange-600': edu.qvcStatus === 'needs_correction'
-                     }">
-                    {{ getQVCStatusText(edu.qvcStatus) }}
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Qualification</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                University</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Specialization</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Period</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Country</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                *ngIf="isQVCInProgress">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr *ngFor="let edu of educationData; let i = index" class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ edu.qualification || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ edu.university || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ edu.specialization || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ edu.eduPeriod || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ edu.eduCountry || '-' }}</td>
+                            <td class="px-4 py-3 text-sm" *ngIf="isQVCInProgress">
+                                <div class="flex gap-2">
+                                    <button pButton icon="pi pi-check" class="p-button-success p-button-sm"
+                                        (click)="markEducationCorrect(i)" pTooltip="Mark Correct" tooltipPosition="top">
+                                    </button>
+                                    <button pButton icon="pi pi-times" class="p-button-warning p-button-sm"
+                                        (click)="markEducationNeedsCorrection(i)" pTooltip="Needs Correction"
+                                        tooltipPosition="top">
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- QVC Status Display for individual education records (if needed) -->
+            <div *ngFor="let edu of educationData; let i = index" class="mt-2">
+                <div *ngIf="edu.qvcStatus" class="text-xs p-2 rounded" [ngClass]="{
+                 'bg-green-50 text-green-600 border border-green-200': edu.qvcStatus === 'correct',
+                 'bg-red-50 text-red-600 border border-red-200': edu.qvcStatus === 'wrong',
+                 'bg-orange-50 text-orange-600 border border-orange-200': edu.qvcStatus === 'needs_correction'
+             }">
+                    <strong>Education {{ i + 1 }}:</strong> {{ getQVCStatusText(edu.qvcStatus) }}
                     <span *ngIf="edu.qvcComment">- {{ edu.qvcComment }}</span>
-                </div>
-
-                <!-- QVC Action Buttons -->
-                <div *ngIf="isQVCInProgress" class="mt-2 flex gap-2">
-                    <button pButton icon="pi pi-check" label="Correct" class="p-button-success p-button-sm"
-                        (click)="markEducationCorrect(i)">
-                    </button>
-                    <button pButton icon="pi pi-times" label="Needs Correction" class="p-button-warning p-button-sm"
-                        (click)="markEducationNeedsCorrection(i)">
-                    </button>
                 </div>
             </div>
         </div>
@@ -360,8 +435,8 @@
     <p-card class="shadow-md p-4" id="residency" *ngIf="activeSection === 'residency'">
         <div class="flex justify-between items-center mb-6">
             <div>
-                <h3 class="text-xl font-semibold text-[#202a5a]">Step 3: Residency, Travel & Family</h3>
-                <p class="text-gray-600">Residency information, travel history, and family details</p>
+                <h3 class="text-xl font-semibold text-[#202a5a] !m-0">Residency, Travel & Family</h3>
+                <p class="text-gray-600 text-sm">Residency information, travel history, and family details</p>
             </div>
             <button pButton icon="pi pi-check" label="Verify Section" class="p-button-outlined p-button-sm"
                 *ngIf="isQVCInProgress" (click)="verifySection('residencyTravelFamily')">
@@ -377,35 +452,56 @@
                 </button>
             </div>
             <p-divider type="solid" style="margin-top: 0;" />
-            <div *ngFor="let residence of residencesData; let i = index" class="mb-4 p-4 border rounded-lg bg-gray-50">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div><strong>Country:</strong> {{ residence.country || '-' }}</div>
-                    <div><strong>Type:</strong> {{ residence.type || '-' }}</div>
-                    <div><strong>Issue Date:</strong> {{ residence.issueDate ? (residence.issueDate | date) : '-' }}
-                    </div>
-                    <div><strong>Expiry Date:</strong> {{ residence.expiryDate ? (residence.expiryDate | date) : '-' }}
-                    </div>
-                </div>
 
-                <!-- QVC Status Display -->
-                <div *ngIf="residence.qvcStatus" class="text-xs mt-2" [ngClass]="{
-                         'text-green-600': residence.qvcStatus === 'correct',
-                         'text-red-600': residence.qvcStatus === 'wrong',
-                         'text-orange-600': residence.qvcStatus === 'needs_correction'
-                     }">
-                    {{ getQVCStatusText(residence.qvcStatus) }}
-                    <span *ngIf="residence.qvcComment">- {{ residence.qvcComment }}</span>
-                </div>
-
-                <!-- QVC Action Buttons -->
-                <div *ngIf="isQVCInProgress" class="mt-2 flex gap-2">
-                    <button pButton icon="pi pi-check" label="Correct" class="p-button-success p-button-sm"
-                        (click)="markResidenceCorrect(i)">
-                    </button>
-                    <button pButton icon="pi pi-times" label="Needs Correction" class="p-button-warning p-button-sm"
-                        (click)="markResidenceNeedsCorrection(i)">
-                    </button>
-                </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Country</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Type</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Issue Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Expiry Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                *ngIf="isQVCInProgress">QVC Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                *ngIf="isQVCInProgress">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr *ngFor="let residence of residencesData; let i = index" class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ residence.country || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ residence.type || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ residence.issueDate ? (residence.issueDate |
+                                date) : '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ residence.expiryDate ? (residence.expiryDate
+                                | date) : '-' }}</td>
+                            <td class="px-4 py-3 text-sm" *ngIf="isQVCInProgress">
+                                <span *ngIf="residence.qvcStatus" class="px-2 py-1 text-xs rounded-full" [ngClass]="{
+                            'bg-green-100 text-green-800': residence.qvcStatus === 'correct',
+                            'bg-red-100 text-red-800': residence.qvcStatus === 'wrong',
+                            'bg-orange-100 text-orange-800': residence.qvcStatus === 'needs_correction'
+                        }">
+                                    {{ getQVCStatusText(residence.qvcStatus) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-sm" *ngIf="isQVCInProgress">
+                                <div class="flex gap-2">
+                                    <button pButton icon="pi pi-check" class="p-button-success p-button-sm"
+                                        (click)="markResidenceCorrect(i)" pTooltip="Mark Correct" tooltipPosition="top">
+                                    </button>
+                                    <button pButton icon="pi pi-times" class="p-button-warning p-button-sm"
+                                        (click)="markResidenceNeedsCorrection(i)" pTooltip="Needs Correction"
+                                        tooltipPosition="top">
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -419,38 +515,63 @@
                 </button>
             </div>
             <p-divider type="solid" style="margin-top: 0;" />
-            <div *ngFor="let nationality of otherNationalitiesData; let i = index"
-                class="mb-4 p-4 border rounded-lg bg-gray-50">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div><strong>Country:</strong> {{ nationality.country || '-' }}</div>
-                    <div><strong>Passport #:</strong> {{ nationality.passportNumber || '-' }}</div>
-                    <div><strong>Status:</strong> {{ nationality.countryStatus || '-' }}</div>
-                    <div><strong>Issue Date:</strong> {{ nationality.issueDate ? (nationality.issueDate | date) : '-' }}
-                    </div>
-                    <div><strong>Expiry Date:</strong> {{ nationality.expiryDate ? (nationality.expiryDate | date) : '-'
-                        }}</div>
-                    <div><strong>Place of Issue:</strong> {{ nationality.placeOfIssue || '-' }}</div>
-                </div>
 
-                <!-- QVC Status Display -->
-                <div *ngIf="nationality.qvcStatus" class="text-xs mt-2" [ngClass]="{
-                         'text-green-600': nationality.qvcStatus === 'correct',
-                         'text-red-600': nationality.qvcStatus === 'wrong',
-                         'text-orange-600': nationality.qvcStatus === 'needs_correction'
-                     }">
-                    {{ getQVCStatusText(nationality.qvcStatus) }}
-                    <span *ngIf="nationality.qvcComment">- {{ nationality.qvcComment }}</span>
-                </div>
-
-                <!-- QVC Action Buttons -->
-                <div *ngIf="isQVCInProgress" class="mt-2 flex gap-2">
-                    <button pButton icon="pi pi-check" label="Correct" class="p-button-success p-button-sm"
-                        (click)="markOtherNationalityCorrect(i)">
-                    </button>
-                    <button pButton icon="pi pi-times" label="Needs Correction" class="p-button-warning p-button-sm"
-                        (click)="markOtherNationalityNeedsCorrection(i)">
-                    </button>
-                </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Country</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Passport #</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Issue Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Expiry Date</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Place of Issue</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                *ngIf="isQVCInProgress">QVC Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                *ngIf="isQVCInProgress">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr *ngFor="let nationality of otherNationalitiesData; let i = index" class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ nationality.country || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ nationality.passportNumber || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ nationality.countryStatus || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ nationality.issueDate ?
+                                (nationality.issueDate | date) : '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ nationality.expiryDate ?
+                                (nationality.expiryDate | date) : '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ nationality.placeOfIssue || '-' }}</td>
+                            <td class="px-4 py-3 text-sm" *ngIf="isQVCInProgress">
+                                <span *ngIf="nationality.qvcStatus" class="px-2 py-1 text-xs rounded-full" [ngClass]="{
+                            'bg-green-100 text-green-800': nationality.qvcStatus === 'correct',
+                            'bg-red-100 text-red-800': nationality.qvcStatus === 'wrong',
+                            'bg-orange-100 text-orange-800': nationality.qvcStatus === 'needs_correction'
+                        }">
+                                    {{ getQVCStatusText(nationality.qvcStatus) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-sm" *ngIf="isQVCInProgress">
+                                <div class="flex gap-2">
+                                    <button pButton icon="pi pi-check" class="p-button-success p-button-sm"
+                                        (click)="markOtherNationalityCorrect(i)" pTooltip="Mark Correct"
+                                        tooltipPosition="top">
+                                    </button>
+                                    <button pButton icon="pi pi-times" class="p-button-warning p-button-sm"
+                                        (click)="markOtherNationalityNeedsCorrection(i)" pTooltip="Needs Correction"
+                                        tooltipPosition="top">
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -463,35 +584,55 @@
                 </button>
             </div>
             <p-divider type="solid" style="margin-top: 0;" />
-            <div *ngFor="let visit of countriesVisitedData; let i = index"
-                class="mb-4 p-4 border rounded-lg bg-gray-50">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div><strong>Country:</strong> {{ visit.country || '-' }}</div>
-                    <div><strong>Period:</strong> {{ visit.period || '-' }}</div>
-                    <div><strong>Reason:</strong> {{ visit.visitingReason || '-' }}</div>
-                    <div *ngIf="visit.otherReasonOfVisit"><strong>Other Reason:</strong> {{ visit.otherReasonOfVisit }}
-                    </div>
-                </div>
 
-                <!-- QVC Status Display -->
-                <div *ngIf="visit.qvcStatus" class="text-xs mt-2" [ngClass]="{
-                         'text-green-600': visit.qvcStatus === 'correct',
-                         'text-red-600': visit.qvcStatus === 'wrong',
-                         'text-orange-600': visit.qvcStatus === 'needs_correction'
-                     }">
-                    {{ getQVCStatusText(visit.qvcStatus) }}
-                    <span *ngIf="visit.qvcComment">- {{ visit.qvcComment }}</span>
-                </div>
-
-                <!-- QVC Action Buttons -->
-                <div *ngIf="isQVCInProgress" class="mt-2 flex gap-2">
-                    <button pButton icon="pi pi-check" label="Correct" class="p-button-success p-button-sm"
-                        (click)="markCountryVisitCorrect(i)">
-                    </button>
-                    <button pButton icon="pi pi-times" label="Needs Correction" class="p-button-warning p-button-sm"
-                        (click)="markCountryVisitNeedsCorrection(i)">
-                    </button>
-                </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Country</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Period</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Reason</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Other Reason</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                *ngIf="isQVCInProgress">QVC Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                *ngIf="isQVCInProgress">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr *ngFor="let visit of countriesVisitedData; let i = index" class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ visit.country || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ visit.period || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ visit.visitingReason || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ visit.otherReasonOfVisit || '-' }}</td>
+                            <td class="px-4 py-3 text-sm" *ngIf="isQVCInProgress">
+                                <span *ngIf="visit.qvcStatus" class="px-2 py-1 text-xs rounded-full" [ngClass]="{
+                            'bg-green-100 text-green-800': visit.qvcStatus === 'correct',
+                            'bg-red-100 text-red-800': visit.qvcStatus === 'wrong',
+                            'bg-orange-100 text-orange-800': visit.qvcStatus === 'needs_correction'
+                        }">
+                                    {{ getQVCStatusText(visit.qvcStatus) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-sm" *ngIf="isQVCInProgress">
+                                <div class="flex gap-2">
+                                    <button pButton icon="pi pi-check" class="p-button-success p-button-sm"
+                                        (click)="markCountryVisitCorrect(i)" pTooltip="Mark Correct"
+                                        tooltipPosition="top">
+                                    </button>
+                                    <button pButton icon="pi pi-times" class="p-button-warning p-button-sm"
+                                        (click)="markCountryVisitNeedsCorrection(i)" pTooltip="Needs Correction"
+                                        tooltipPosition="top">
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -504,33 +645,56 @@
                 </button>
             </div>
             <p-divider type="solid" style="margin-top: 0;" />
-            <div *ngFor="let family of familyMembersData; let i = index" class="mb-4 p-4 border rounded-lg bg-gray-50">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div><strong>Name:</strong> {{ family.name || '-' }}</div>
-                    <div><strong>Relation:</strong> {{ family.relation || '-' }}</div>
-                    <div><strong>Date of Birth:</strong> {{ family.dob ? (family.dob | date) : '-' }}</div>
-                    <div><strong>Profession:</strong> {{ family.profession || '-' }}</div>
-                </div>
 
-                <!-- QVC Status Display -->
-                <div *ngIf="family.qvcStatus" class="text-xs mt-2" [ngClass]="{
-                         'text-green-600': family.qvcStatus === 'correct',
-                         'text-red-600': family.qvcStatus === 'wrong',
-                         'text-orange-600': family.qvcStatus === 'needs_correction'
-                     }">
-                    {{ getQVCStatusText(family.qvcStatus) }}
-                    <span *ngIf="family.qvcComment">- {{ family.qvcComment }}</span>
-                </div>
-
-                <!-- QVC Action Buttons -->
-                <div *ngIf="isQVCInProgress" class="mt-2 flex gap-2">
-                    <button pButton icon="pi pi-check" class="p-button-success p-button-sm"
-                        (click)="markFamilyMemberCorrect(i)">
-                    </button>
-                    <button pButton icon="pi pi-times" class="p-button-warning p-button-sm"
-                        (click)="markFamilyMemberNeedsCorrection(i)">
-                    </button>
-                </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white border border-gray-200 rounded-lg">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Name</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Relation</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Date of Birth</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Profession</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                *ngIf="isQVCInProgress">QVC Status</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                *ngIf="isQVCInProgress">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr *ngFor="let family of familyMembersData; let i = index" class="hover:bg-gray-50">
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ family.name || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ family.relation || '-' }}</td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ family.dob ? (family.dob | date) : '-' }}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-900">{{ family.profession || '-' }}</td>
+                            <td class="px-4 py-3 text-sm" *ngIf="isQVCInProgress">
+                                <span *ngIf="family.qvcStatus" class="px-2 py-1 text-xs rounded-full" [ngClass]="{
+                            'bg-green-100 text-green-800': family.qvcStatus === 'correct',
+                            'bg-red-100 text-red-800': family.qvcStatus === 'wrong',
+                            'bg-orange-100 text-orange-800': family.qvcStatus === 'needs_correction'
+                        }">
+                                    {{ getQVCStatusText(family.qvcStatus) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-sm" *ngIf="isQVCInProgress">
+                                <div class="flex gap-2">
+                                    <button pButton icon="pi pi-check" class="p-button-success p-button-sm"
+                                        (click)="markFamilyMemberCorrect(i)" pTooltip="Mark Correct"
+                                        tooltipPosition="top">
+                                    </button>
+                                    <button pButton icon="pi pi-times" class="p-button-warning p-button-sm"
+                                        (click)="markFamilyMemberNeedsCorrection(i)" pTooltip="Needs Correction"
+                                        tooltipPosition="top">
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
     </p-card>
@@ -539,8 +703,8 @@
     <p-card class="shadow-md p-4" id="documents" *ngIf="activeSection === 'documents'">
         <div class="flex justify-between items-center mb-6">
             <div>
-                <h3 class="text-xl font-semibold text-[#202a5a]">Step 4: Document Upload</h3>
-                <p class="text-gray-600">Uploaded supporting documents and files</p>
+                <h3 class="text-xl font-semibold text-[#202a5a] !m-0">Document Upload</h3>
+                <p class="text-gray-600 text-sm">Uploaded supporting documents and files</p>
             </div>
             <button pButton icon="pi pi-check" label="Verify Section" class="p-button-outlined p-button-sm"
                 *ngIf="isQVCInProgress" (click)="verifySection('documents')">
@@ -602,8 +766,8 @@
     <p-card class="shadow-md p-4" id="qvc" *ngIf="activeSection === 'qvc'">
         <div class="flex justify-between items-center mb-6">
             <div>
-                <h3 class="text-xl font-semibold text-[#202a5a]">Quality Verification Check (QVC)</h3>
-                <p class="text-gray-600">Quality assurance and verification status</p>
+                <h3 class="text-xl font-semibold text-[#202a5a] !m-0">Quality Verification Check (QVC)</h3>
+                <p class="text-gray-600 text-sm">Quality assurance and verification status</p>
             </div>
             <button pButton icon="pi pi-eye" label="View QVC Details" class="p-button-outlined p-button-sm"
                 (click)="showQVCDetails = true">
