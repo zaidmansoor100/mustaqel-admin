@@ -63,7 +63,7 @@ interface QVCProgress {
     total: number;
 }
 
-type QVCStatus = 'correct' | 'wrong' | 'needs_correction' | 'approved' | 'rejected';
+type QVCStatus = 'correct' | 'wrong' | 'needsCorrection' | 'approved' | 'rejected';
 
 @Component({
     selector: 'app-view-single-application',
@@ -123,7 +123,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     readonly QVC_STATUS_OPTIONS = [
         { label: 'Correct', value: 'correct' },
         { label: 'Wrong', value: 'wrong' },
-        { label: 'Needs Correction', value: 'needs_correction' }
+        { label: 'Needs Correction', value: 'needsCorrection' }
     ];
 
     readonly FILE_EXTENSIONS = {
@@ -152,7 +152,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         private reqService: RequestService,
         private cdRef: ChangeDetectorRef, // Add this
         @Inject(PLATFORM_ID) private platformId: Object
-    ) {}
+    ) { }
 
     ngOnInit(): void {
         if (isPlatformBrowser(this.platformId)) {
@@ -630,10 +630,10 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
 
     private determineOverallStatus(): QVCStatus {
         const wrongCount = this.qvcChecks.filter((check) => check.status === 'wrong').length;
-        const needsCorrectionCount = this.qvcChecks.filter((check) => check.status === 'needs_correction').length;
+        const needsCorrectionCount = this.qvcChecks.filter((check) => check.status === 'needsCorrection').length;
 
         if (wrongCount > 0) return 'rejected';
-        if (needsCorrectionCount > 0) return 'needs_correction';
+        if (needsCorrectionCount > 0) return 'needsCorrection';
         return 'approved';
     }
 
@@ -926,7 +926,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
             value: fieldData.value || '',
             _targetObject: targetObject
         };
-        this.currentFieldStatus = 'needs_correction';
+        this.currentFieldStatus = 'needsCorrection';
         this.currentFieldCommentEn = '';
         this.currentFieldCommentAr = '';
         this.currentFieldCorrections = '';
@@ -958,7 +958,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         const statusMap: { [key: string]: string } = {
             correct: 'Correct',
             wrong: 'Wrong',
-            needs_correction: 'Needs Correction',
+            needsCorrection: 'Needs Correction',
             approved: 'Approved',
             rejected: 'Rejected'
         };
@@ -1252,11 +1252,11 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     }
 
     private loadExistingQVCChecks(): void {
-        if (!this.request?.qvc?.qvc_checks) return;
+        if (!this.request?.qvc?.qvcChecks) return;
 
         const allFields = [...this.personalFields, ...this.passportFields, ...this.contactFields, ...this.employmentFields];
 
-        this.request.qvc.qvc_checks.forEach((check: QVCCheck) => {
+        this.request.qvc.qvcChecks.forEach((check: QVCCheck) => {
             // Load basic fields
             const field = allFields.find((f) => f.fieldPath === check.fieldPath);
             if (field) {
@@ -1358,7 +1358,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
             approved: 'success',
             correct: 'success',
             pending: 'warning',
-            needs_correction: 'warning',
+            needsCorrection: 'warning',
             rejected: 'danger',
             wrong: 'danger'
         };

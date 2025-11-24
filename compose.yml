@@ -4,7 +4,7 @@ services:
   mustaqeel-admin:
     build:
       context: .
-      dockerfile: Dockerfile.staging
+      dockerfile: Dockerfile.Dockerfile.staging
     ports:
       - "8068:80"
     networks:
