@@ -17,7 +17,6 @@ import { ImageModule } from 'primeng/image';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { PdfViewerModule } from 'ng2-pdf-viewer';
-import * as pdfjsLib from 'pdfjs-dist';
 import { Divider } from 'primeng/divider';
 
 // Interfaces for type safety
@@ -150,26 +149,13 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         private http: HttpClient,
         private messageService: MessageService,
         private reqService: RequestService,
-        private cdRef: ChangeDetectorRef, // Add this
+        private cdRef: ChangeDetectorRef,
         @Inject(PLATFORM_ID) private platformId: Object
     ) { }
 
     ngOnInit(): void {
         if (isPlatformBrowser(this.platformId)) {
-            this.configurePdfJs();
             this.initializeComponent();
-        }
-    }
-
-    private configurePdfJs(): void {
-        // Configure PDF.js worker
-        const PDFJS_WORKER_URL = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
-
-        try {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
-            console.log('PDF.js worker configured successfully');
-        } catch (error) {
-            console.warn('PDF.js worker configuration failed:', error);
         }
     }
 
