@@ -5,7 +5,7 @@ export const environment = {
         name: '_mus_admin',
         expires: 30,
         path: '/',
-        domain: 'localhost',
+        domain: '192.168.201.5',
         secure: false,
         same_site: 'strict'
     },
