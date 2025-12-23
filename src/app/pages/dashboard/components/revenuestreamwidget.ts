@@ -74,7 +74,7 @@ import { Chart } from 'chart.js';
                 </div>
                 <div class="grid grid-cols-2 gap-4 justify-between">
                     <p-chart type="bar" [data]="chartData" [options]="chartOptions" class="h-100" />
-                    <div class="justify-self-end w-[400px] text-primary">
+                    <div class="justify-self-center w-[400px] text-primary">
                         <div class="font-bold text-xl text-primary">Key activities</div>
                         <div class="font-bold text-primary">Operational:</div>
                         <div>Cohort 1: 3 QIDs / 25 Nominated</div>
