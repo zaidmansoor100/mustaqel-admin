@@ -27,15 +27,30 @@ export class AuthHelperService {
     });
   }
 
-  forceLogoutClient(): void {
+  // forceLogoutClient(): void {
+  //   this.deleteCookie(this.appVars.env['cookie'].name);
+  //   this.deleteCookie(this.appVars.env.tokenExpiry);
+  //   this.deleteCookie(this.appVars.env.tokenExpiryMin);
+
+  //   const isCookie = this.cookieService.check(this.appVars.env['auth_cookie']);
+  //   if (!isCookie) {
+  //     this.router.navigate(['/auth']);
+  //   }
+  // }
+
+  forceLogoutClient(): boolean {
     this.deleteCookie(this.appVars.env['cookie'].name);
     this.deleteCookie(this.appVars.env.tokenExpiry);
     this.deleteCookie(this.appVars.env.tokenExpiryMin);
 
     const isCookie = this.cookieService.check(this.appVars.env['auth_cookie']);
+    console.log(isCookie, 'cookie');
+
     if (!isCookie) {
-      this.router.navigate(['/auth']);
+      return true;
     }
+
+    return false;
   }
 
   deleteCookie(name: string) {

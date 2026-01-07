@@ -115,9 +115,18 @@ export class RequestService extends CoreService {
         return this.filePost('user/requests/document', document, additionalData);
     }
 
-    submitQVC(params: any): Observable<any> {
-        return this.post('admin/requests/qvc', params);
+    submitqc(params: any): Observable<any> {
+        return this.post('admin/requests/qc', params);
     }
+
+    approveQc(params: any): Observable<any> {
+        return this.post('admin/requests/qc/approved', params);
+    }
+
+    requestUpdateStatus(params: any, id: number): Observable<any> {
+        return this.put(`admin/requests/${id}/update-status`, params);
+    }
+
 
     previewDocument(docId: any): Observable<Blob> {
         const path = 'user/requests/documents/' + docId + '/preview';

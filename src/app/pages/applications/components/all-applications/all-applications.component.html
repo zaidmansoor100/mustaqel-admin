@@ -44,14 +44,18 @@
             <td><p-tableCheckbox [value]="request"></p-tableCheckbox></td>
             <td>{{ request.reqReferenceNumber || 'Assign after submission' }}</td>
             <td>{{ request.nameEn || 'N/A'}}</td>
-            <td>{{ request.metas?.category?.name || 'N/A' }}</td>
-            <td>{{ request.metas?.sector?.name || 'N/A'}}</td>
-            <td>{{ request.metas?.activity?.name || 'N/A' }}</td>
+            <td>{{ request?.category?.name || 'N/A' }}</td>
+            <td>{{ request?.sector?.name || 'N/A'}}</td>
+            <td>{{ request?.activity?.name || 'N/A' }}</td>
             <td>{{ request.created_at | date:'short' }}</td>
 
             <td>
                 <p-tag [value]="request.statuses?.application?.status || 'N/A'"
                     [severity]="getSeverity(request.statuses?.application?.status)"></p-tag>
+            </td>
+            <td>
+                <p-tag [value]="request.statuses?.jusour?.status || 'N/A'"
+                    [severity]="getSeverity(request.statuses?.jusour?.status)"></p-tag>
             </td>
 
 
@@ -79,28 +83,71 @@
 </p-table>
 
 <p-dialog header="Update Application Status" [(visible)]="statusDialogVisible" [modal]="true"
-    [style]="{ width: '400px' }">
+    [className]="'dialog-overflow'" [style]="{ width: '400px' }">
     <ng-template #content>
-        <div class="grid grid-col gap-6">
-            <div class="mb-4">
-                <label for="status" class="block font-bold mb-3">Status</label>
-                <p-select appendTo="body" [options]="statusOptions" [(ngModel)]="selectedStatus"
-                    placeholder="Select Status" [filter]="true" optionLabel="label" optionValue="value" class="w-full"
-                    inputId="status">
-                </p-select>
-            </div>
+        <form [formGroup]="updateStatus" class="w-full">
+            <div class="grid grid-col gap-3">
+                <div class="mb-2" >
+                    <label for="status" class="block font-bold mb-3">Status</label>
+                    <p-select [options]="statusOptions" formControlName="status"  placeholder="Select Status"
+                        [filter]="true" optionLabel="label" optionValue="value" class="w-full" inputId="status">
+                    </p-select>
+                </div>
 
-            <div class="mb-4">
-                <label for="reason" class="block font-bold mb-3">Reason</label>
-                <textarea pInputTextarea rows="4" [(ngModel)]="statusReason" placeholder="Enter reason" class="w-full"
-                    inputId="reason"></textarea>
+                <!-- <div class="mb-4">
+                    <label for="reason" class="block font-bold mb-3">Reason</label>  
+                    <textarea pTextarea  rows="4" [(ngModel)]="statusReason" placeholder="Enter reason" class="w-full"
+                        inputId="reason"></textarea>
+                </div> -->
+                <!-- Comment EN -->
+                <div class="flex flex-col gap-1  ">
+                    <label for="commentEn" class="font-bold">
+                        Comment (EN) <span class="text-red-600">*</span>
+                    </label>
+
+                    <textarea pTextarea rows="4" inputId="commentEn" formControlName="commentsEn"
+                        placeholder="Enter comment" class="w-full">
+                </textarea>
+
+                    <div *ngIf="updateStatus.get('commentsEn')?.touched && updateStatus.get('commentsEn')?.invalid"
+                        class="text-red-600 text-sm">
+                        <div *ngIf="updateStatus.get('commentsEn')?.errors?.['required']">
+                            Comment is required
+                        </div>
+                        <div *ngIf="updateStatus.get('commentsEn')?.errors?.['minlength']">
+                            Minimum 3 characters required
+                        </div>
+                        <div *ngIf="updateStatus.get('commentsEn')?.errors?.['maxlength']">
+                            Maximum 200 characters allowed
+                        </div>
+                    </div>
+
+                    <small class="text-gray-500">
+                        {{ updateStatus.get('commentsEn')?.value?.length || 0 }}/200
+                    </small>
+                </div>
+
+                <!-- Comment AR -->
+                <div class="flex flex-col gap-1 ">
+                    <label for="commentAr" class="font-bold">   
+                        Comment (AR)
+                    </label>
+
+                    <textarea pTextarea rows="4" inputId="commentAr" formControlName="commentsAr" placeholder="أدخل التعليق"
+                        class="w-full">
+            </textarea>
+
+                    <small class="text-gray-500">
+                        {{ updateStatus.get('commentsAr')?.value?.length || 0 }}/200
+                    </small>
+                </div>
             </div>
-        </div>
+        </form>
     </ng-template>
 
     <ng-template #footer>
-        <p-button label="Cancel" icon="pi pi-times" text (click)="statusDialogVisible=false"/>
-        <p-button label="Update" icon="pi pi-check"  (click)="updateRequestStatus()"/>
+        <p-button label="Cancel" icon="pi pi-times" text (click)="statusDialogVisible=false" />
+        <p-button label="Update" icon="pi pi-check" (click)="updateRequestStatus()" />
     </ng-template>
 </p-dialog>
 

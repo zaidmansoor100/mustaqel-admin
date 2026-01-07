@@ -14,12 +14,17 @@ import { SelectModule } from 'primeng/select';
 import { Toolbar } from 'primeng/toolbar';
 import { ConfirmDialog } from 'primeng/confirmdialog';
 import { DialogModule } from 'primeng/dialog';
+import { TextareaModule } from 'primeng/textarea';
+import { FormsModule, FormBuilder, FormControl, Validators, ReactiveFormsModule, FormGroup } from '@angular/forms';
+import { Subject, takeUntil } from 'rxjs';
 
 @Component({
     selector: 'applications-index',
     templateUrl: './all-applications.component.html',
     styleUrl: './all-applications.component.scss',
-    imports: [DialogModule, CommonModule, TableModule, TagModule, IconFieldModule, InputTextModule, InputIconModule, MultiSelectModule, SelectModule, SharedModule, RouterModule, Toolbar, ConfirmDialog],
+    imports: [DialogModule, CommonModule, TableModule, TextareaModule, TagModule, IconFieldModule,
+        InputTextModule, InputIconModule, MultiSelectModule, SelectModule, SharedModule, RouterModule,
+        Toolbar, ConfirmDialog, ReactiveFormsModule, FormsModule],
     providers: [MessageService, ConfirmationService]
 })
 export class AllApplicationsComponent implements OnInit {
@@ -29,6 +34,7 @@ export class AllApplicationsComponent implements OnInit {
     @Input() catSlug: any;
     selectedRequests: any[] = [];
     totalRecords = 0;
+    private destroy$ = new Subject<void>();
 
     cols = [
         { field: 'requestId', header: 'Request No' },
@@ -37,7 +43,8 @@ export class AllApplicationsComponent implements OnInit {
         { field: 'sectorName', header: 'Sector' },
         { field: 'activityName', header: 'Activity' },
         { field: 'createdDate', header: 'Created Date' },
-        { field: 'status', header: 'Application Status' }
+        { field: 'status', header: 'Application Status' },
+        { field: 'jStatus', header: 'Jusour Status' },
     ];
 
     // Dialog visibility & form fields
@@ -46,12 +53,25 @@ export class AllApplicationsComponent implements OnInit {
     selectedStatus: string | null = null;
     statusReason: string = '';
 
+
+    // FormGroup
+    updateStatus!: FormGroup;
+
     // Dropdown options
     statusOptions = [
-        { label: 'Accepted', value: 'Accepted' },
+        { label: 'Approved', value: 'Approved' },
         { label: 'Rejected', value: 'Rejected' },
-        { label: 'Pending', value: 'Pending' },
-        { label: 'On Hold', value: 'On Hold' }
+        // { label: 'Pending', value: 'Pending' },
+        { label: 'On Hold', value: 'On Hold' },
+        { label: 'Under Review', value: 'Under Review status' }
+    ];
+
+    cities = [
+        { name: 'New York', code: 'NY' },
+        { name: 'Rome', code: 'RM' },
+        { name: 'London', code: 'LDN' },
+        { name: 'Istanbul', code: 'IST' },
+        { name: 'Paris', code: 'PRS' }
     ];
 
     constructor(
@@ -59,11 +79,13 @@ export class AllApplicationsComponent implements OnInit {
         private messageService: MessageService,
         private confirmationService: ConfirmationService,
         private router: Router,
-        private route: ActivatedRoute
-    ) {}
+        private route: ActivatedRoute,
+        private fb: FormBuilder
+    ) { }
 
     ngOnInit() {
         this.loadRequests({ first: 0, rows: 10 });
+        this.buildCommentForm()
     }
 
     loadRequests(event: any) {
@@ -75,7 +97,7 @@ export class AllApplicationsComponent implements OnInit {
                 const all = res.data?.request?.data || [];
 
                 // ✅ Only include TAL category
-                this.requests = all.filter((r: any) => String(r.metas?.catSlug).toLowerCase() === this.catSlug);
+                this.requests = all.filter((r: any) => String(r.category?.slug).toLowerCase() === this.catSlug);
 
                 this.totalRecords = this.requests.length;
             }
@@ -146,23 +168,100 @@ export class AllApplicationsComponent implements OnInit {
     }
 
     openStatusDialog(request: any) {
+
         this.selectedRequest = request;
-        this.selectedStatus = request.statuses?.application?.status || null;
+        console.log(request?.statuses?.application?.status, 'status');
+
+        this.selectedStatus = request?.statuses?.application?.status || null;
         this.statusReason = '';
         this.statusDialogVisible = true;
     }
 
+
+    buildCommentForm(): void {
+        this.updateStatus = this.fb.group({
+            status: [Validators.required],
+            commentsEn: [
+                '',
+                [
+                    Validators.required,
+                    Validators.minLength(3),
+                    Validators.maxLength(200)
+                ]
+            ],
+            commentsAr: [
+                '',
+                [
+                    Validators.minLength(3),
+                    Validators.maxLength(200)
+                ]
+            ]
+        });
+    }
+
     // Update status (call API or update locally)
-    updateRequestStatus() {
-        if (!this.selectedRequest || !this.selectedStatus) return;
+    // updateRequestStatus() {
+    //     if (!this.selectedRequest || !this.selectedStatus) return;
 
-        // Replace with API call if needed
-        this.selectedRequest.statuses.application.status = this.selectedStatus;
-        this.selectedRequest.statuses.application.reason = this.statusReason;
+    //     // Replace with API call if needed
+    //     this.selectedRequest.statuses.application.status = this.selectedStatus;
+    //     this.selectedRequest.statuses.application.reason = this.statusReason;
 
-        this.messageService.add({ severity: 'success', summary: 'Updated', detail: 'Request status updated' });
+    //     this.messageService.add({ severity: 'success', summary: 'Updated', detail: 'Request status updated' });
 
-        // Close dialog
-        this.statusDialogVisible = false;
+    //     // Close dialog
+    //     this.statusDialogVisible = false;
+    // }
+
+    async updateRequestStatus() {
+        if (this.updateStatus.invalid || !this.selectedRequest || !this.selectedStatus) {
+            console.warn('Form invalid', this.updateStatus);
+            return;
+        }
+        // console.log(this.selectedRequest)
+        const id = this.selectedRequest?.id
+        const val = this.updateStatus.value
+        console.log(this.requests, 'before')
+        try {
+            const payload = {
+                status: val.status,
+                commentsEn: val.commentsEn,
+                commentsAr: val.commentsAr,
+            };
+
+            const response: any = await this.requestService.requestUpdateStatus(payload, id).pipe(takeUntil(this.destroy$)).toPromise();
+
+            this.messageService.add({
+                severity: 'success',
+                summary: 'Status',
+                detail: `Request has been   successfully`
+            });
+
+            this.selectedRequest.statuses = Object.keys(
+                response.data?.request?.status || {}
+            ).reduce((acc: any, key: string) => {
+                const item = response.data.request.status[key]?.[0];
+
+                if (item) {
+                    acc[key] = {
+                        status: item.status,
+                        stage: item.stage,
+                        username: item.username,
+                        role: item.role
+                    };
+                }
+
+                return acc;
+            }, {});
+
+            this.statusDialogVisible = false
+        } catch (error) {
+            console.error('status:', error);
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Status Failed',
+                detail: 'Failed to update status. Please try again.'
+            });
+        }
     }
 }
