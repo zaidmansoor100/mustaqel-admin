@@ -65,7 +65,7 @@
                     [rounded]="true" [outlined]="true" (click)="navigateToView(request.id)" />
 
                 <p-button icon="pi pi-pencil" class="mr-2"
-                    *ngIf="request.statuses?.application?.status && request.statuses?.application?.status.toLowerCase() !== 'draft'"
+                    *ngIf="request.statuses?.jusour?.status.toLowerCase() !== 'approved' && request.statuses?.jusour?.status.toLowerCase() !== 'rejected'"
                     [rounded]="true" [outlined]="true" (click)="openStatusDialog(request)" />
 
                 <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"

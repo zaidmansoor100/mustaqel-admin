@@ -19,6 +19,8 @@ import { takeUntil } from 'rxjs/operators';
 import { PdfViewerModule } from 'ng2-pdf-viewer';
 import { Divider } from 'primeng/divider';
 import { ConfirmDialog } from 'primeng/confirmdialog';
+import { AccordionModule } from 'primeng/accordion';
+import { BadgeModule } from 'primeng/badge';
 
 
 // Interfaces for type safety
@@ -73,7 +75,8 @@ type QCButton = 'START_QC' | 'APPROVED_QC' | 'APPROVED' | 'REJECT' | 'ON_HOLD';
     selector: 'app-view-single-application',
     standalone: true,
     imports: [ImageModule, CommonModule, RouterModule, CardModule, ButtonModule, ConfirmDialog, TagModule, DialogModule,
-        TooltipModule, SelectModule, TextareaModule, FormsModule, PdfViewerModule, Divider, ReactiveFormsModule],
+        TooltipModule, SelectModule, TextareaModule, FormsModule, PdfViewerModule, Divider, ReactiveFormsModule,
+        AccordionModule, BadgeModule],
     templateUrl: './view-single-application.component.html',
     styleUrls: ['./view-single-application.component.scss'],
     providers: [ConfirmationService, MessageService]
@@ -124,7 +127,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     passportFields: FieldData[] = [];
     contactFields: FieldData[] = [];
     employmentFields: FieldData[] = [];
-
+    statuses: any[] = [];
     // Constants
     readonly qc_STATUS_OPTIONS = [
         { label: 'Correct', value: 'Correct' },
@@ -171,6 +174,29 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         }
         this.prepareQvcCorrections()
         this.buildCommentForm();
+
+        this.statuses = Object.entries(this.request?.status).map(([key, value]: any) => ({
+            key,
+            ...((Array.isArray(value) && value.length > 0) ? value[0] : {})
+        }));
+    }
+
+    getSeverity(
+        param: string | null | undefined
+    ): 'info' | 'success' | 'warn' | 'danger' | 'secondary' | 'contrast' {
+
+        const status = param?.toLowerCase();
+
+        switch (status) {
+            case 'approved':
+                return 'success';
+
+            case 'rejected':
+                return 'danger';
+
+            default:
+                return 'warn';
+        }
     }
 
     firstCorrectionPath: string | null = null;
@@ -1454,27 +1480,45 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     }
 
     private qcButtonVisibilityMap: Record<string, QCButton[]> = {
-        'null': [ 'START_QC'],
+        'null': ['START_QC'],
 
-        'Resubmitted': ['APPROVED_QC', 'START_QC' ],
+        'Resubmitted': ['APPROVED_QC', 'START_QC'],
 
         // 'QC Approved': ['APPROVED', 'REJECT', 'ON_HOLD'],
         // 'QC Approve': ['APPROVED', 'REJECT', 'ON_HOLD'], 
 
-        'Action Required': [  'START_QC']
+        'Action Required': ['START_QC']
     };
 
     isButtonVisible(button: QCButton): boolean {
 
-        // 🔥 Highest priority: QC is in progress
+        const jusourStatus =
+            this.request?.status?.jusour?.[0]?.status?.toLowerCase();
+
+        if (jusourStatus === 'approved' || jusourStatus === 'rejected') {
+            return false;
+        }
+
+        // if (this.request?.qualityCheck?.summary?.completionPercentage === 100) {
+        //     if (button === 'START_QC') {
+        //         return false;
+        //     }
+        //     if (button === 'APPROVED_QC') {
+        //         return true;
+        //     }
+        // }
+
+        /* 🔥 3. QC is in progress */
         if (this.isqcInProgress) {
             return [''].includes(button);
         }
 
-        // Normal status-based behavior
+        /* 📌 4. Normal status-based behavior */
         const status = this.request?.qualityCheck?.status ?? 'null';
         return this.qcButtonVisibilityMap[status]?.includes(button) ?? false;
     }
+
+
 
     // confirmation modal
     conformation: boolean = false;
