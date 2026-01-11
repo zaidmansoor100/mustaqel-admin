@@ -2,7 +2,7 @@
 
 .layout-sidebar {
     position: fixed;
-    width: 20rem;
+    width: 18rem;
     height: calc(100vh - 8rem);
     z-index: 999;
     overflow-y: auto;
@@ -15,7 +15,7 @@
     // background-color: var(--surface-overlay);
     background-color: rgba($color: #fff, $alpha: 0.3);
     border-radius: var(--content-border-radius);
-    padding: 0.5rem 1.5rem;
+    padding: 0.5rem ;
 }
 
 .layout-menu {
@@ -67,7 +67,7 @@
             outline: 0 none;
             color: var(--text-color);
             cursor: pointer;
-            padding: 0.75rem 1rem;
+            padding: 0.5rem ;
             border-radius: var(--content-border-radius);
             transition:
                 background-color var(--element-transition-duration),

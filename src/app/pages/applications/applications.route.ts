@@ -4,6 +4,7 @@ import { AllInvesApplicationsComponent } from './investorApplications/all-applic
 import { AllEntreApplicationsComponent } from './entrepreneurApplications/all-applications/all-applications.component';
 import { ViewApplicationComponent } from './view-application/view-application.component';
 import { SingleRequestResolver } from '@/resolvers/requestResolvers/singleRequest.resolver';
+import { AllExecutiveApplications } from './executiveApplication/all-applications/all-applications';
 
 export default [
     {
@@ -17,6 +18,10 @@ export default [
     },{
         path: 'investor-applications',
         component: AllInvesApplicationsComponent,
+        
+    },{
+        path: 'executive-applications',
+        component: AllExecutiveApplications,
         
     },{
         path: 'view/:id',

@@ -4,6 +4,10 @@
 @use 'primeicons/primeicons.css';
 @use './demo/demo.scss';
 
+body{
+  font-size: 12px !important
+}
+
 .layout-wrapper {
 
   background: rgba(255, 255, 255, 0.6);
@@ -105,4 +109,7 @@
 
 .blink-bg-soft {
   animation: softBlink 1.5s ease-in-out infinite;
+}
+span.layout-menuitem-text{
+  font-size: 13px;
 }

@@ -19,7 +19,7 @@
     <ng-template #caption>
         <div class="flex items-center justify-between">
             <h5 class="m-0">
-                {{ 'Manage ' + (catSlug == 'tal' ? 'Talent' : catSlug == 'ent' ? 'Entrepreneur' : 'Investor') + '
+                {{ 'Manage ' + (catSlug == 'tal' ? 'Talent' : catSlug == 'ent' ? 'Entrepreneur' : catSlug == 'inv' ? 'Investor' :'Executive') + '
                 Requests' }}
             </h5>
             <p-iconfield>

@@ -40,6 +40,11 @@ export class AppMenuComponent {
                                 label: 'Investor Applications',
                                 icon: 'pi pi-file-edit',
                                 routerLink: ['/pages/applications/investor-applications']
+                            },
+                            {
+                                label: 'Executive Applications',
+                                icon: 'pi pi-file-edit',
+                                routerLink: ['/pages/applications/executive-applications']
                             }
                         ]
                     }

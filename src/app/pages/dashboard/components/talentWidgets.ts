@@ -8,7 +8,7 @@ import { MenuModule } from 'primeng/menu';
     selector: 'app-talent-widget',
     imports: [CommonModule, ButtonModule, MenuModule],
     template: `
-        <div class="grid grid-cols-5 gap-2 items-end"> 
+        <div class="grid grid-cols-6 gap-2 items-end"> 
             <div class="col-span-4 flex justify-center items-center text-xs font-semibold flex-col gap-1 text-white">
                 <div class="title text-lg w-full font-bold mb-2 h-12 bg-[#d9d9d9] text-black  flex justify-center items-center">Talents</div>
                 <div class="bg-[#82163a] p-2 flex min-h-12  w-full leading-4  text-white flex-col justify-center items-center ">
@@ -35,7 +35,7 @@ import { MenuModule } from 'primeng/menu';
                      <div>Residence</div>
                 </div>
             </div> 
-            <div class="col-span-1 flex justify-center items-center flex-col gap-1 text-white text-xs font-semibold">
+            <div class="col-span-2 flex justify-center items-center flex-col gap-1 text-white text-xs font-semibold">
                 <!-- <div class="title text-xl w-full font-bold h-12 bg-gray-300 text-black  flex justify-center items-center">Investor</div> -->
                 <div class="bg-[#82163a] p-2 flex min-h-12  w-full  leading-4 text-white flex-col justify-center items-center ">
                     <div>204</div>

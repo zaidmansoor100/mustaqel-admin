@@ -1,4 +1,4 @@
-<div class="page-container p-4 space-y-6">
+<div class="page-container  space-y-6">
     <!-- Sticky Section Tabs -->
     <div id="overview" class="mb-4">
         <!-- Page Header -->
@@ -24,15 +24,23 @@
                 <button pButton icon="pi pi-check-circle" label="Approved QC" class="p-button-rounded p-button-success"
                     *ngIf="isButtonVisible('APPROVED_QC')" (click)="confirm1($event)">
                 </button>
+
             </div>
         </div>
 
-        <div class="w-full bg-white z-50 shadow-md sticky top-20">
+        <div class="w-full bg-white z-50 shadow-md sticky top-20 flex justify-between">
             <div class="flex overflow-x-auto gap-2 px-8 py-4 items-center">
                 <button *ngFor="let sec of SECTIONS" pButton [label]="sec | titlecase" class="p-button-sm flex-shrink-0"
                     [ngClass]="{'p-button-info': activeSection === sec, 'p-button-outlined': activeSection !== sec}"
                     (click)="scrollTo(sec)">
                 </button>
+            </div>
+            <div *ngIf="request?.qualityCheck?.status" class="flex gap-2 items-center px-4">
+                <p class="text-gray-500 text-sm !mb-0">Current Status:</p>
+                <p-tag [severity]="getStatusSeverity(request?.qualityCheck?.status)"
+                    [value]="request?.qualityCheck?.status ? request?.qualityCheck?.status : 'Pending'"
+                    styleClass="px-3 py-1 rounded-full">
+                </p-tag>
             </div>
         </div>
         <!-- Application Status & Reference -->
@@ -181,7 +189,7 @@
                                     (click)="markFieldWrong(field)">
                                 </button>
                             </div>
-                            
+
                             <div *ngIf="field.status" class="text-xs mt-1" [ngClass]="{
                              'text-green-600': field.status === 'Correct',
                              'text-red-600': field.status === 'Wrong',
@@ -304,7 +312,8 @@
                             <p class="text-gray-900 !text-sm !font-bold !mb-1">{{ field.value }}</p>
                             <div *ngIf="getFieldQCComment(field.fieldPath)"
                                 class="text-primary bg-primary/20 text-sm font-semibold px-1 rounded-md"> Old Value:
-                                <span class=" font-bold">{{getFieldQCComment(field.fieldPath) }}</span></div>
+                                <span class=" font-bold">{{getFieldQCComment(field.fieldPath) }}</span>
+                            </div>
                             <div *ngIf="isqcInProgress" class="mt-2 flex gap-2">
                                 <button pButton icon="pi pi-check" class="p-button-success p-button-sm"
                                     (click)="markFieldCorrect(field)">
@@ -847,7 +856,8 @@
                        'text-purple-500': isImage(doc.documentName || doc.type)
                    }"></i>
                             <div>
-                                <span class="!font-bold block !text-xs text-black">{{ formatDocumentName(doc.type) }}</span>
+                                <span class="!font-bold block !text-xs text-black">{{ formatDocumentName(doc.type)
+                                    }}</span>
                                 <small class="text-gray-500 !text-xs font-semibold">
                                     {{ getFileExtension(doc.documentName || doc.type) }} •
                                     {{ doc.created_at | date:'short' }}
@@ -1029,11 +1039,12 @@
 
 
 <!-- QC Action Bar -->
-<div *ngIf="isqcInProgress" class="fixed bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 border-red-700 border z-50 blink-bg-soft">
+<div *ngIf="isqcInProgress"
+    class="fixed bottom-4 right-4 bg-white shadow-lg rounded-lg p-4 border-red-700 border z-50 blink-bg-soft">
     <div class="flex flex-col gap-2">
         <h4 class="font-semibold">QC Progress</h4>
-        <p>Fields Checked: {{ qcProgress.checked }}/{{ qcProgress.total }}</p>
-        <p class="text-xs text-gray-500" *ngIf="qcProgress.checked < qcProgress.total">
+        <p class="!mb-0">Fields Checked: {{ qcProgress.checked }}/{{ qcProgress.total }}</p>
+        <p class="text-xs !mb-0 text-gray-500" *ngIf="qcProgress.checked < qcProgress.total">
             Complete all field checks to submit QC
         </p>
         <div class="flex gap-2">
