@@ -310,10 +310,10 @@
                         <div *ngFor="let field of employmentFields" class="field-container">
                             <p class="font-semibold text-gray-700 !mb-1 text-sm">{{ field.label }}</p>
                             <p class="text-gray-900 !text-sm !font-bold !mb-1">{{ field.value }}</p>
-                            <div *ngIf="getFieldQCComment(field.fieldPath)"
+                            <!-- <div *ngIf="getFieldQCComment(field.fieldPath)"
                                 class="text-primary bg-primary/20 text-sm font-semibold px-1 rounded-md"> Old Value:
                                 <span class=" font-bold">{{getFieldQCComment(field.fieldPath) }}</span>
-                            </div>
+                            </div> -->
                             <div *ngIf="isqcInProgress" class="mt-2 flex gap-2">
                                 <button pButton icon="pi pi-check" class="p-button-success p-button-sm"
                                     (click)="markFieldCorrect(field)">
@@ -336,7 +336,7 @@
 
                 <!-- Previous Jobs -->
                 <div class="mb-8" *ngIf="hasValidArrayData(previousJobsData)">
-                    <div class="flex justify-between items-center mb-0">
+                    <div class="flex justify-between items-center mb-1">
                         <h4 class="!text-lg !font-semibold text-secondary !mb-0 !text-[#8d1942]">Previous Jobs</h4>
                         <button pButton icon="pi pi-check" label="Verify All Jobs" class="p-button-outlined p-button-sm"
                             *ngIf="isqcInProgress && shouldShowSectionVerification('previousJobs')"
@@ -407,7 +407,7 @@
 
                 <!-- Education -->
                 <div class="mb-8" *ngIf="hasValidArrayData(educationData)">
-                    <div class="flex justify-between items-center mb-0">
+                    <div class="flex justify-between items-center mb-1">
                         <h4 class="!text-lg !font-semibold text-secondary !mb-0 !text-[#8d1942]">Education</h4>
                         <button pButton icon="pi pi-check" label="Verify All Education"
                             class="p-button-outlined p-button-sm"
@@ -467,10 +467,10 @@
                     <!-- QC Status Display for individual education records (if needed) -->
                     <div *ngFor="let edu of educationData; let i = index" class="mt-2">
                         <div *ngIf="edu.status" class="text-xs p-2 rounded" [ngClass]="{
-                 'bg-green-50 text-green-600 border border-green-200': edu.status === 'Correct',
-                 'bg-red-50 text-red-600 border border-red-200': edu.status === 'Wrong',
-                 'bg-orange-50 text-orange-600 border border-orange-200': edu.status === 'NeedCorrection'
-             }">
+                                'bg-green-50 text-green-600 border border-green-200': edu.status === 'Correct',
+                                'bg-red-50 text-red-600 border border-red-200': edu.status === 'Wrong',
+                                'bg-orange-50 text-orange-600 border border-orange-200': edu.status === 'NeedCorrection'
+                            }">
                             <strong>Education {{ i + 1 }}:</strong> {{ getqcStatusText(edu.status) }}
                             <span *ngIf="edu.qcComment">- {{ edu.qcComment }}</span>
                         </div>
@@ -492,7 +492,7 @@
 
                 <!-- Residences -->
                 <div class="mb-8" *ngIf="hasValidArrayData(residencesData)">
-                    <div class="flex justify-between items-center mb-0">
+                    <div class="flex justify-between items-center mb-1">
                         <h4 class="!text-lg !font-semibold text-secondary !mb-0 !text-[#8d1942]">Active Residencies</h4>
                         <button pButton icon="pi pi-check" label="Verify All Residencies"
                             class="p-button-outlined p-button-sm"
@@ -575,7 +575,7 @@
 
                 <!-- Other Nationalities -->
                 <div class="mb-8" *ngIf="hasValidArrayData(otherNationalitiesData)">
-                    <div class="flex justify-between items-center mb-0">
+                    <div class="flex justify-between items-center mb-1">
                         <h4 class="!text-lg !font-semibold text-secondary !mb-0 !text-[#8d1942]">Other Nationalities
                         </h4>
                         <button pButton icon="pi pi-check" label="Verify All Nationalities"
@@ -669,7 +669,7 @@
 
                 <!-- Countries Visited -->
                 <div class="mb-8" *ngIf="hasValidArrayData(countriesVisitedData)">
-                    <div class="flex justify-between items-center mb-0">
+                    <div class="flex justify-between items-center mb-1">
                         <h4 class="!text-lg !font-semibold text-secondary !mb-0 !text-[#8d1942]">Countries Visited (Last
                             10
                             Years)</h4>
@@ -750,7 +750,7 @@
 
                 <!-- Family Members -->
                 <div class="mb-8" *ngIf="hasValidArrayData(familyMembersData)">
-                    <div class="flex justify-between items-center mb-0">
+                    <div class="flex justify-between items-center mb-1">
                         <h4 class="!text-lg !font-semibold text-secondary !mb-0 !text-[#8d1942]">Family Members</h4>
                         <button pButton icon="pi pi-check" label="Verify All Family"
                             class="p-button-outlined p-button-sm"

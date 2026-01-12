@@ -412,10 +412,22 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
                 { label: 'Profession', value: employmentInfo.profession || null, fieldPath: 'employmentAndEducation.employmentDetails.profession' },
                 { label: 'Sponsor Name', value: employmentInfo.nameOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.nameOfSponsor' },
                 { label: 'Sponsor Address', value: employmentInfo.addressOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.addressOfSponsor' }
+            ],
+            exe: [
+                { label: 'Profession', value: employmentInfo.profession || null, fieldPath: 'employmentAndEducation.employmentDetails.profession' },
+                { label: 'Sponsor Name', value: employmentInfo.nameOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.nameOfSponsor' },
+                { label: 'Sponsor Address', value: employmentInfo.addressOfSponsor || null, fieldPath: 'employmentAndEducation.employmentDetails.addressOfSponsor' },
+                { label: 'Company Name', value: employmentInfo.companyName || null, fieldPath: 'employmentAndEducation.employmentDetails.companyName' },
+                { label: 'Current Job Title', value: employmentInfo.currentJobTitle || null, fieldPath: 'employmentAndEducation.employmentDetails.currentJobTitle' },
+                { label: 'Date Of Joining', value: employmentInfo.dateOfJoining || null, fieldPath: 'employmentAndEducation.employmentDetails.dateOfJoining' },
+                { label: 'Monthly Salary', value: employmentInfo.monthlySalary || null, fieldPath: 'employmentAndEducation.employmentDetails.monthlySalary' },
+                { label: 'Other Company Classification', value: employmentInfo.otherCompanyClassification || null, fieldPath: 'employmentAndEducation.employmentDetails.otherCompanyClassification' },
+                { label: 'Other Current Job Title', value: employmentInfo.otherCurrentJobTitle || null, fieldPath: 'employmentAndEducation.employmentDetails.otherCurrentJobTitle' },
+                { label: 'Company Classification', value: employmentInfo.companyClassification || null, fieldPath: 'employmentAndEducation.employmentDetails.companyClassification' },
             ]
         };
 
-        return fieldMappings[catSlug] || [];
+        return fieldMappings[catSlug].filter((e: any) => e.value) || [];
     }
 
     private formatDate(dateString: string): string {
@@ -527,6 +539,8 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
 
     startqc(): void {
         this.isqcInProgress = true;
+        // whenever start QC it will start fresh
+        this.resetAllqcChecks();
         this.messageService.add({
             severity: 'info',
             summary: 'QC Started',
@@ -1484,41 +1498,24 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
 
         'Resubmitted': ['APPROVED_QC', 'START_QC'],
 
-        // 'QC Approved': ['APPROVED', 'REJECT', 'ON_HOLD'],
-        // 'QC Approve': ['APPROVED', 'REJECT', 'ON_HOLD'], 
-
-        'Action Required': ['START_QC']
+        'Action Required': []
     };
 
     isButtonVisible(button: QCButton): boolean {
 
-        const jusourStatus =
-            this.request?.status?.jusour?.[0]?.status?.toLowerCase();
+        const jusourStatus =  this.request?.status?.jusour?.[0]?.status?.toLowerCase();
 
         if (jusourStatus === 'approved' || jusourStatus === 'rejected') {
             return false;
         }
 
-        // if (this.request?.qualityCheck?.summary?.completionPercentage === 100) {
-        //     if (button === 'START_QC') {
-        //         return false;
-        //     }
-        //     if (button === 'APPROVED_QC') {
-        //         return true;
-        //     }
-        // }
-
-        /* 🔥 3. QC is in progress */
         if (this.isqcInProgress) {
             return [''].includes(button);
         }
 
-        /* 📌 4. Normal status-based behavior */
         const status = this.request?.qualityCheck?.status ?? 'null';
         return this.qcButtonVisibilityMap[status]?.includes(button) ?? false;
-    }
-
-
+    } 
 
     // confirmation modal
     conformation: boolean = false;
@@ -1528,7 +1525,6 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         this.conformationText = status;
         this.conformation = true;
     }
-
 
     buildCommentForm(): void {
         this.formComment = this.fb.group({
