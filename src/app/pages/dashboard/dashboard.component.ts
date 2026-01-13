@@ -11,7 +11,7 @@ import { ReportingGraphComponent } from './components/reportingGraphComponent';
 @Component({
   selector: 'app-dashboard',
   // imports: [RecentSalesWidget, BestSellingWidget, RevenueStreamWidget, NotificationsWidget],
-  imports: [BarsWidget, talentWidgets, RevenueStreamWidget],
+  imports: [BarsWidget, RevenueStreamWidget],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })

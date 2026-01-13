@@ -1047,9 +1047,7 @@
         <p class="text-xs !mb-0 text-gray-500" *ngIf="qcProgress.checked < qcProgress.total">
             Complete all field checks to submit QC
         </p>
-        <div class="flex gap-2">
-            <!-- <button pButton icon="pi pi-save" label="Save Progress" class="p-button-info p-button-sm"
-                (click)="saveqcProgress()"></button> -->
+        <div class="flex gap-2"> 
             <button pButton icon="pi pi-check" label="Submit QC" class="p-button-success p-button-sm"
                 [disabled]="qcProgress.checked < qcProgress.total || qcProgress.total === 0"
                 (click)="submitqc()"></button>

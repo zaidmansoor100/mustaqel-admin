@@ -132,4 +132,8 @@ export class RequestService extends CoreService {
         const path = 'user/requests/documents/' + docId + '/preview';
         return this.blobGet(path);
     }
+
+    getStats(): Observable<any> {
+        return this.get('admin/requests/count');
+    }
 }
