@@ -2,10 +2,7 @@ import { Routes } from '@angular/router';
 import { AppLayoutComponent } from '@/layout/component/app-layout/app-layout.component';
 import { DashboardComponent } from '@/pages/dashboard/dashboard.component';
 import { AuthGuard } from '@/guards/auth.guard';
-import { UserResolver } from '@/resolvers/userResolver.resolver';
-// import { Documentation } from './app/pages/documentation/documentation';
-// import { Landing } from './app/pages/landing/landing';
-// import { Notfound } from './app/pages/notfound/notfound';
+import { UserResolver } from '@/resolvers/userResolver.resolver'; 
 
 export const appRoutes: Routes = [
     {

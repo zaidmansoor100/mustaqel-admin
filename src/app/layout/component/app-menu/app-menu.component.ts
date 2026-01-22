@@ -87,17 +87,17 @@ export class AppMenuComponent {
                             {
                                 label: 'Admin Users',
                                 icon: 'pi pi-user',
-                                routerLink: ['/auth/login']
+                                routerLink: ['/pages/administration/admin-users']
                             },
                             {
                                 label: 'Applicant Users',
                                 icon: 'pi pi-user',
-                                routerLink: ['/auth/error']
+                                routerLink: ['/pages/administration/applicant-users']
                             },
                             {
                                 label: 'Entity & Incubator Users',
                                 icon: 'pi pi-user',
-                                routerLink: ['/auth/access']
+                                routerLink: ['/pages/administration/entity-users']
                             }
                         ]
                     },

@@ -10,7 +10,7 @@ body{
 
 .layout-wrapper {
 
-  background: rgba(255, 255, 255, 0.6);
+  // background: rgba(255, 255, 255, 0.6);
   z-index: 9999;
   // position: relative;
 }
@@ -18,7 +18,7 @@ body{
 
 .layout-wrapper::before {
   position: absolute;
-  content: '';
+  // content: '';
   left: 0;
   right: 0;
   top: 0;
