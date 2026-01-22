@@ -12,8 +12,8 @@
     transition:
         transform var(--layout-section-transition-duration),
         left var(--layout-section-transition-duration);
-    // background-color: var(--surface-overlay);
-    background-color: rgba($color: #fff, $alpha: 0.3);
+    background-color: var(--surface-overlay);
+    // background-color: rgba($color: #fff, $alpha: 0.3);
     border-radius: var(--content-border-radius);
     padding: 0.5rem ;
 }
