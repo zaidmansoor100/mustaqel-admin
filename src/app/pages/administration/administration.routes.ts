@@ -6,26 +6,17 @@ import { EntityUsers } from './entity-users/entity-users';
 export default [
     {
         path: 'admin-users',
-        component: AdminUsers,
-        resolve: {
-            // categoriesResolver: CategoriesResolver
-        },
+        component: AdminUsers, 
         
     }, 
     {
         path: 'applicant-users',
-        component: ApplicantUsers,
-        resolve: {
-            // categoriesResolver: CategoriesResolver
-        },
+        component: ApplicantUsers, 
         
     }, 
     {
         path: 'entity-users',
-        component: EntityUsers,
-        resolve: {
-            // categoriesResolver: CategoriesResolver
-        },
+        component: EntityUsers, 
         
     }, 
     { path: '**', redirectTo: '/admin-users' }
