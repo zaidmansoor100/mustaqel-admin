@@ -15,6 +15,10 @@ import { EntitiesResolver } from '@/resolvers/entities.resolver';
 import { IncubatorsResolver } from '@/resolvers/incubators.resolver';
 import { ExtraFormFieldsComponent } from './extraFormFields/extraFormFields.component';
 import { FormFieldsResolver } from '@/resolvers/formFields.resolver';
+import { StagesComponent } from './stages/stages.component';
+import { StageStatusesComponent } from './stage-statuses/stage-statuses.component';
+import { StagesResolver } from '@/resolvers/stages.resolver';
+import { StageStatusesResolver } from '@/resolvers/stageStatuses.resolver';
 
 export default [
     {
@@ -72,6 +76,20 @@ export default [
         component: IncubatorsComponent,
         resolve: {
             incubatorsResolver: IncubatorsResolver
+        }
+    },
+    {
+        path: 'stages',
+        component: StagesComponent,
+        resolve: {
+            stagesResolver: StagesResolver
+        }
+    },
+    {
+        path: 'stage-statuses',
+        component: StageStatusesComponent,
+        resolve: {
+            stageStatusesResolver: StageStatusesResolver
         }
     }
 ] as Routes;

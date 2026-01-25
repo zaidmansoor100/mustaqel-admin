@@ -74,7 +74,9 @@ export class AppMenuComponent {
                             },
                         ]
                     },
-                    { label: 'Extra Form Fields', icon: 'pi pi-th-large', routerLink: ['/pages/configurations/extra-fields'] }
+                    { label: 'Extra Form Fields', icon: 'pi pi-th-large', routerLink: ['/pages/configurations/extra-fields'] },
+                    { label: 'Stages', icon: 'pi pi-th-large', routerLink: ['/pages/configurations/stages'] },
+                    { label: 'Stage Statuses', icon: 'pi pi-th-large', routerLink: ['/pages/configurations/stage-statuses'] }
                 ]
             },
             {

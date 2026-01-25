@@ -204,6 +204,54 @@ export class ConfigurationService extends CoreService {
     }
 
     // ----------------------------
+    // stages CRUD
+    // ----------------------------
+
+    getAllStages(params?: any): Observable<any> {
+        return this.get('admin/stages'+params);
+    }
+
+    getStageId(id: any): Observable<any> {
+        return this.get(`admin/stages/${id}`);
+    }
+
+    createStage(params: any): Observable<any> {
+        return this.post('admin/stages', params);
+    }
+
+    updateStage(id: any, params: any): Observable<any> {
+        return this.put(`admin/stages/${id}`, params);
+    }
+
+    deleteStage(id: any): Observable<any> {
+        return this.delete(`admin/stages/${id}`);
+    }
+
+    // ----------------------------
+    // stage statuses CRUD
+    // ----------------------------
+
+    getAllStageStatuses(params?: any): Observable<any> {
+        return this.get('admin/stage-statuses'+params);
+    }
+
+    getStageStatusesId(id: any): Observable<any> {
+        return this.get(`admin/stage-statuses/${id}`);
+    }
+
+    createStageStatuses(params: any): Observable<any> {
+        return this.post('admin/stage-statuses', params);
+    }
+
+    updateStageStatuses(id: any, params: any): Observable<any> {
+        return this.put(`admin/stage-statuses/${id}`, params);
+    }
+
+    deleteStageStatuses(id: any): Observable<any> {
+        return this.delete(`admin/stage-statuses/${id}`);
+    }
+
+    // ----------------------------
     // Globle Services
     // ----------------------------
 
