@@ -21,18 +21,18 @@ import { HttpClient } from '@angular/common/http';
 import { AdministrationService } from '@/services/administration.service';
 
 @Component({
-    selector: 'app-entity-users',
-    standalone: true,
+  selector: 'app-roles',
+  standalone: true,
     imports: [ReactiveFormsModule, SelectModule, TagModule, CommonModule, FormsModule, TableModule, ButtonModule, RippleModule, ToastModule, ToolbarModule, InputTextModule, DialogModule, InputIconModule, IconFieldModule, ConfirmDialogModule],
 
-    templateUrl: './entity-users.html',
-    styleUrl: './entity-users.scss',
+  templateUrl: './roles.component.html',
+  styleUrl: './roles.component.scss',
     providers: [MessageService, ConfirmationService]
 })
-export class EntityUsers  implements OnInit {
-    userDialog: boolean = false;
+export class RolesComponent  implements OnInit {
+    roleDialog: boolean = false;
     submitted: boolean = false;
-    selectedUsers: any[] = [];
+    selectedRoles: any[] = [];
     status: any = [
         {
             id: 1,
@@ -48,9 +48,9 @@ export class EntityUsers  implements OnInit {
 
     exportColumns!: any[];
     cols!: any[];
-    users: any[] = [];
-    user: any = {};
-    userForm!: FormGroup;
+    roles: any[] = [];
+    role: any = {};
+    roleForm!: FormGroup;
 
     totalRecords = 0;
     page = 1;
@@ -66,8 +66,8 @@ export class EntityUsers  implements OnInit {
     ) {}
 
     ngOnInit() {
-        this.users = this.activatedRoute.snapshot.data['users'][0]['data']['user']['data'];
-        console.log(this.users);
+        this.roles = this.activatedRoute.snapshot.data['roles'][0]['data']['role']['data'];
+        console.log(this.roles);
 
         this.exportCSVData();
         this.formBuild();
@@ -77,7 +77,7 @@ export class EntityUsers  implements OnInit {
 
     exportCSV() {
         // Flatten any fields for export
-        const formatted = this.users.map((row: any) => ({
+        const formatted = this.roles.map((row: any) => ({
             ...row,
             status: row.status === 1 ? 'Active' : 'Inactive'
         }));
@@ -112,9 +112,9 @@ export class EntityUsers  implements OnInit {
     loadUsers(event: any) {
         const page = event.first / event.rows + 1;
         const perPage = event.rows;
-        this.administrationService.getAllUsers('entity', `?page=${page}&per_page=${perPage}`).subscribe({
+        this.administrationService.getAllRoles(`?page=${page}&per_page=${perPage}`).subscribe({
             next: (res) => {
-                this.users = res.data.user.data;
+                this.roles = res.data.role.data;
                 this.totalRecords = res.total;
                 this.page = res.current_page;
             },
@@ -124,53 +124,53 @@ export class EntityUsers  implements OnInit {
                 this.messageService.add({
                     severity: 'error',
                     summary: 'Error',
-                    detail: 'Failed to load users',
+                    detail: 'Failed to load roles',
                     life: 3000
                 });
             }
         });
     }
 
-    formBuild(user?: any) {
-        this.userForm = this.fb.group({
-            name: [user?.name || '', [Validators.required, Validators.maxLength(50), Validators.minLength(3), CustomValidators.alpha()]],
-            nameAr: [user?.nameAr || '', [Validators.required, Validators.maxLength(255), Validators.minLength(3), CustomValidators.arabic()]],
-            status: [user?.status || '', [Validators.required, Validators.maxLength(1)]]
+    formBuild(role?: any) {
+        this.roleForm = this.fb.group({
+            name: [role?.name || '', [Validators.required, Validators.maxLength(50), Validators.minLength(3), CustomValidators.alpha()]],
+            nameAr: [role?.nameAr || '', [Validators.required, Validators.maxLength(255), Validators.minLength(3), CustomValidators.arabic()]],
+            status: [role?.status || '', [Validators.required, Validators.maxLength(1)]]
         });
     }
 
     openNew() {
         this.formBuild();
-        this.user = {};
+        this.role = {};
         this.submitted = false;
-        this.userDialog = true;
+        this.roleDialog = true;
     }
 
-    editUser(user: any) {
-        console.log(user);
+    editRole(role: any) {
+        console.log(role);
 
-        this.formBuild(user);
-        this.user = { ...user };
-        this.userDialog = true;
+        this.formBuild(role);
+        this.role = { ...role };
+        this.roleDialog = true;
     }
 
-    deleteSelectedUsers() {
+    deleteSelectedRoles() {
         this.confirmationService.confirm({
-            message: 'Are you sure you want to delete the selected users?',
+            message: 'Are you sure you want to delete the selected roles?',
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                const deleteRequests = this.selectedUsers.map((cat) => this.administrationService.deleteUser('jusour', cat.id));
+                const deleteRequests = this.selectedRoles.map((cat) => this.administrationService.deleteRole(cat.id));
 
                 // Run all delete requests
                 Promise.all(deleteRequests.map((req) => req.toPromise()))
                     .then(() => {
-                        this.users = this.users.filter((val) => !this.selectedUsers.includes(val));
-                        this.selectedUsers = [];
+                        this.roles = this.roles.filter((val) => !this.selectedRoles.includes(val));
+                        this.selectedRoles = [];
                         this.messageService.add({
                             severity: 'success',
                             summary: 'Successful',
-                            detail: 'Users Deleted',
+                            detail: 'Roles Deleted',
                             life: 3000
                         });
                     })
@@ -187,19 +187,19 @@ export class EntityUsers  implements OnInit {
         });
     }
 
-    deleteUser(user: any) {
+    deleteRole(role: any) {
         this.confirmationService.confirm({
-            message: 'Are you sure you want to delete ' + user.name + '?',
+            message: 'Are you sure you want to delete ' + role.name + '?',
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                this.administrationService.deleteUser('jusour', user.id).subscribe({
+                this.administrationService.deleteRole(role.id).subscribe({
                     next: () => {
-                        this.users = this.users.filter((val) => val.id !== user.id);
+                        this.roles = this.roles.filter((val) => val.id !== role.id);
                         this.messageService.add({
                             severity: 'success',
                             summary: 'Successful',
-                            detail: 'User Deleted',
+                            detail: 'Role Deleted',
                             life: 3000
                         });
                     },
@@ -217,9 +217,9 @@ export class EntityUsers  implements OnInit {
         });
     }
 
-    saveUser() {
+    saveRole() {
         this.submitted = true;
-        const formValue = this.userForm.value;
+        const formValue = this.roleForm.value;
 
         const obj = {
             name: formValue.name,
@@ -227,20 +227,20 @@ export class EntityUsers  implements OnInit {
             status: formValue.status
         };
 
-        if (this.user.id) {
-            // Update existing user
-            this.administrationService.updateUser('jusour', this.user.id, obj).subscribe({
+        if (this.role.id) {
+            // Update existing role
+            this.administrationService.updateRole(this.role.id, obj).subscribe({
                 next: (res) => {
-                    const index = this.users.findIndex((c) => c.id === this.user.id);
-                    this.users[index] = res;
+                    const index = this.roles.findIndex((c) => c.id === this.role.id);
+                    this.roles[index] = res;
                     this.messageService.add({
                         severity: 'success',
                         summary: 'Successful',
-                        detail: 'User Updated',
+                        detail: 'Role Updated',
                         life: 3000
                     });
-                    this.userDialog = false;
-                    this.user = {};
+                    this.roleDialog = false;
+                    this.role = {};
                 },
                 error: (error) => {
                     console.log(error);
@@ -253,18 +253,18 @@ export class EntityUsers  implements OnInit {
                 }
             });
         } else {
-            // Create new user
-            this.administrationService.createUser('jusour', obj).subscribe({
+            // Create new role
+            this.administrationService.createRole(obj).subscribe({
                 next: (res) => {
-                    this.users.push(res);
+                    this.roles.push(res);
                     this.messageService.add({
                         severity: 'success',
                         summary: 'Successful',
-                        detail: 'User Created',
+                        detail: 'Role Created',
                         life: 3000
                     });
-                    this.userDialog = false;
-                    this.user = {};
+                    this.roleDialog = false;
+                    this.role = {};
                 },
                 error: (error) => {
                     console.log(error.error.message);
@@ -280,7 +280,7 @@ export class EntityUsers  implements OnInit {
     }
 
     hideDialog() {
-        this.userDialog = false;
+        this.roleDialog = false;
         this.submitted = false;
     }
 }

@@ -103,7 +103,7 @@ export class AppMenuComponent {
                             }
                         ]
                     },
-                    { label: 'Roles', icon: 'pi pi-cog', routerLink: ['/dashboard'] },
+                    { label: 'Roles', icon: 'pi pi-cog', routerLink: ['/pages/administration/roles'] },
                     { label: 'Delete Audits', icon: 'pi pi-cog', routerLink: ['/dashboard'] },
                     { label: 'Promotion Emails', icon: 'pi pi-envelope', routerLink: ['/dashboard'] }
                 ]
