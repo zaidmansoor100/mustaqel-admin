@@ -4,7 +4,7 @@
 @use 'primeicons/primeicons.css';
 @use './demo/demo.scss';
 
-body{
+body {
   font-size: 12px !important
 }
 
@@ -110,6 +110,55 @@ body{
 .blink-bg-soft {
   animation: softBlink 1.5s ease-in-out infinite;
 }
-span.layout-menuitem-text{
+
+span.layout-menuitem-text {
   font-size: 13px;
+}
+
+.apexcharts-legend-marker {
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 50%;
+}
+
+.chart-label .apexcharts-legend .apexcharts-legend-series {
+  flex: 0 0 50%;
+  max-width: 50%;
+}
+
+.line-bf {
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: -0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: #000;
+  }
+}
+
+.apexcharts-canvas {
+  margin: 0 auto;
+}
+
+.filters {
+  .p-inputtext-sm {
+    border-color: #99BBDC;
+    border-radius: 15px;
+    border-width: 2px;
+  }
+
+  .p-datepicker-input-icon-container {
+    --p-datepicker-input-icon-color: #0779F5;
+  }
+}
+
+.filters .p-select {
+  --p-select-border-color: #99BBDC;
+  --p-select-border-radius: 15px;
+  border-width: 2px;
+  --p-select-background: #EFF0F8
 }

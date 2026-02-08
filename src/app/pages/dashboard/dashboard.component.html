@@ -1,20 +1,404 @@
-<div class="grid grid-cols-12 gap-4">
-    <!-- <app-stats-widget class="contents" /> -->
-     <div class="col-span-12  ">
-        <app-bars-widget/> 
-     </div> 
-     <!-- <div class="col-span-4">
-        <app-talent-widget />
-     </div> -->
-    <div class="col-span-12 ">
-        <!-- <app-recent-sales-widget /> -->
-        <!-- <app-best-selling-widget /> -->
-        <app-revenue-stream-widget title="Investor" />
-        
+<div id="dashboard-recidence">
+
+    <div class="flex flex-col gap-4">
+        <div class="grid grid-cols-4 gap-4 ">
+            <div (click)="activeTab = 0" [class.active]="activeTab === 0"><app-widget [seriesData]="seriesData" /></div>
+            <div (click)="activeTab = 1" [class.active]="activeTab === 1"><process-widget [seriesData]="processData" />
+            </div>
+            <div (click)="activeTab = 2" [class.active]="activeTab === 2"><app-entity-widget
+                    [seriesData]="entityData" /></div>
+            <div (click)="activeTab = 3" [class.active]="activeTab === 3">
+                <app-line-widget [seriesA]="[55, 100, 59, 55, 20, 92]" [seriesB]="[89, 30, 100, 69, 76, 105]">
+                </app-line-widget>
+            </div>
+
+        </div>
+
+
+        @if (activeTab === 0) {
+        <div class="bg-white rounded-2xl shadow-slate-400/15 shadow card-ch p-4 ">
+            <div class="top-bar-map flex justify-between">
+                <div class="header-map">
+                    <div class="font-semibold text-base">Applications <span class="font-normal text-sm">(All
+                            Categories)</span></div>
+                    <div class="font-normal text-xs">1-15-2026 - 3-15-2026</div>
+                </div>
+                <div class="filters grid grid-cols-3 gap-2 max-w-[400px]">
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="Start Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="End Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-select [options]="categories" size="small" placeholder="Categories" class="w-full"
+                            optionLabel="name">
+                            <ng-template #dropdownicon>
+                                <i class="pi-objects-column pi text-[#0779F5]"></i>
+                            </ng-template>
+                        </p-select>
+                    </div>
+                </div>
+                <div class="header-map">
+                    <div class="font-semibold text-base">Applications <span class="font-normal text-sm">(All
+                            Categories)</span></div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4 items-center">
+                <div class="grid grid-cols-5 gap-4">
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto">
+                            <div class="m-auto">
+                                560
+                                <strong class="block">Submitted</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #C4D8FA">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto">
+                            <div class="m-auto">
+                                560
+                                <strong class="block">QC Approved</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #1B9FF0">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto">
+                            <div class="m-auto">
+                                560
+                                <strong class="block">Endorsed</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #1D65D1">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto">
+                            <div class="m-auto">
+                                560
+                                <strong class="block">MOL approved</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #2FBACB">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto">
+                            <div class="m-auto">
+                                560
+                                <strong class="block">Hayya approved</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #A0D467">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto">
+                            <div class="m-auto">
+                                560
+                                <strong class="block">QC rejected</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #FFF425">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto">
+                            <div class="m-auto">
+                                560
+                                <strong class="block">Endorser rejected</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #FAAC04">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto">
+                            <div class="m-auto">
+                                560
+                                <strong class="block">MOL rejected</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #FA8304">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto">
+                            <div class="m-auto">
+                                560
+                                <strong class="block">Hayya rejected</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #A20F0F">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+
+                </div>
+                <div>
+                    <div class="table-wrap">
+                        <table class="table-stats">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Submitted</th>
+                                    <th>Approved</th>
+                                    <th>In-process</th>
+                                    <th>Rejected</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>Talents</th>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                </tr>
+                                <tr>
+                                    <th>Investors</th>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                </tr>
+                                <tr>
+                                    <th>Entrepreneurs</th>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                </tr>
+                                <tr>
+                                    <th>Executive</th>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th>Total</th>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        }
+
+
+        @if (activeTab === 1) {
+        <div class="bg-white rounded-2xl shadow-slate-400/15 shadow card-ch p-4 ">
+            <div class="top-bar-map flex justify-between">
+                <div class="header-map">
+                    <div class="font-semibold text-base">Processing Times <span class="font-normal text-sm">(All
+                            Categories)</span></div>
+                    <div class="font-normal text-xs">1-15-2026 - 3-15-2026</div>
+                </div>
+                <div class="filters grid grid-cols-3 gap-2 max-w-[400px]">
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="Start Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="End Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-select [options]="categories" size="small" placeholder="Categories" class="w-full"
+                            optionLabel="name">
+                            <ng-template #dropdownicon>
+                                <i class="pi-objects-column pi text-[#0779F5]"></i>
+                            </ng-template>
+                        </p-select>
+                    </div>
+                </div>
+                <div class="header-map">
+                    <div class="font-semibold text-base">Applications <span class="font-normal text-sm">(All
+                            Categories)</span></div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4 items-center">
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                2.5 days
+                                <strong class="block">Jusour QC Time</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #C4D8FA">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                3.8 days
+                                <strong class="block">Endorser Response Time</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #1B9FF0">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                4.2 days
+                                <strong class="block">MOL Response Time</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #1D65D1">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                4.2 days
+                                <strong class="block">Hayya Response Time</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #2FBACB">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="col-span-4">
+                        <div class="table-wrap">
+                            <table class="table-stats">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Submitted</th>
+                                        <th>Approved</th>
+                                        <th>In-process</th>
+                                        <th>Rejected</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <th>Talents</th>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Investors</th>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Entrepreneurs</th>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Executive</th>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th>Total</th>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                        <td>12,9083</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <app-area-chart [seriesData]="series"></app-area-chart>
+                </div>
+            </div>
+        </div>
+        }
     </div>
-    <div class="col-span-12 xl:col-span-6 hidden">
-        <app-revenue-stream-widget title="Entrepreneur" />
-        <!-- <app-notifications-widget /> -->
-         <!-- <app-reporting-graph /> -->
-    </div>
+
 </div>
