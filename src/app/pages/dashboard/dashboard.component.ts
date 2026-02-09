@@ -11,13 +11,15 @@ import { ConfigurationService } from '@/services/configuration.service';
 import { MessageService } from 'primeng/api';
 import { CommonModule } from '@angular/common';
 import { AreaChartComponent } from './components/lineWidgetComponent';
+import { RadarChartComponent } from './components/radarChart';
+import { BarMultiWidgetComponent } from './components/barMultiWidget';
 
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   imports: [ApplicationWidget, ProcessWidget, EntityWidget, LineWidgetComponent, CommonModule, FormsModule,
-    DatePickerModule, SelectModule, FloatLabelModule, AreaChartComponent],
+    DatePickerModule, SelectModule, FloatLabelModule, AreaChartComponent, RadarChartComponent, BarMultiWidgetComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })
@@ -56,20 +58,45 @@ export class DashboardComponent implements OnInit {
 
   series = [
     {
-      name: 'Series 1',
+      name: 'Talent',
       data: [42, 55, 38, 60, 45, 70]
     },
     {
-      name: 'Series 2',
+      name: 'Investor',
       data: [60, 48, 52, 40, 58, 46]
     },
     {
-      name: 'Series 3',
+      name: 'Entrepreneur',
       data: [30, 35, 28, 45, 32, 40]
     },
     {
-      name: 'Series 4',
+      name: 'Executive',
       data: [20, 25, 22, 30, 28, 34]
+    }
+  ];
+
+  months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+
+  barSeries: ApexAxisChartSeries = [
+    {
+      name: 'Jusour',
+      data: [42, 55, 38, 60, 45, 70],
+      color: '#34570E'
+    },
+    {
+      name: 'Endorsers',
+      data: [60, 48, 52, 40, 58, 46],
+      color: '#599617'
+    },
+    {
+      name: 'MOL',
+      data: [30, 35, 28, 45, 32, 40],
+      color: '#8DE42E'
+    },
+    {
+      name: 'Hayya',
+      data: [20, 25, 22, 30, 28, 34],
+      color: '#71FF04'
     }
   ];
 

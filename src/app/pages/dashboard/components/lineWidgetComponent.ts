@@ -1,8 +1,6 @@
 import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RequestService } from '@/services/request.service';
 import { NgApexchartsModule } from 'ng-apexcharts';
-
 import {
   ApexAxisChartSeries,
   ApexChart,
@@ -33,8 +31,8 @@ export type ChartOptions = {
 
 @Component({
   selector: 'app-area-chart',
-  imports: [CommonModule, NgApexchartsModule],
   standalone: true,
+  imports: [CommonModule, NgApexchartsModule],
   template: `
     <apx-chart
       [series]="chartOptions.series"
@@ -47,7 +45,8 @@ export type ChartOptions = {
       [markers]="chartOptions.markers"
       [tooltip]="chartOptions.tooltip"
       [legend]="chartOptions.legend"
-      [grid]="chartOptions.grid">
+      [grid]="chartOptions.grid"
+      [legend]="chartOptions.legend">
     </apx-chart>
   `
 })
@@ -55,18 +54,17 @@ export class AreaChartComponent implements OnChanges {
 
   @Input() seriesData!: ApexAxisChartSeries;
 
-
   chartOptions!: ChartOptions;
 
-  ngOnChanges(): void {
-    this.initChart();
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['seriesData'] && this.seriesData?.length) {
+      this.initChart();
+    }
   }
 
   private initChart() {
-    if (!this.seriesData?.length) return;
-
     this.chartOptions = {
-      series: this.seriesData, // ✅ DIRECT USE
+      series: this.seriesData,  
 
       chart: {
         type: 'area',
@@ -77,64 +75,58 @@ export class AreaChartComponent implements OnChanges {
 
       xaxis: {
         categories: this.lastSixMonths(),
+        // title: { text: 'Months', style: { color: '#888', fontSize: '12px' } },
         axisBorder: { show: false },
         axisTicks: { show: false }
       },
 
       yaxis: {
-        labels: { show: false }
+        // title: { text: 'Days', style: { color: '#888', fontSize: '12px' } },
+        labels: { show: true, formatter: val => val.toString() },
+        min: 0,
+        tickAmount: 4
       },
 
       grid: {
-        padding: {
-          top: 0,
-          bottom: 0
-        }
+        padding: { top: 0, bottom: 0 }
       },
 
       dataLabels: { enabled: false },
 
-      stroke: {
-        curve: 'smooth',
-        width: 2
-      },
+      stroke: { curve: 'smooth', width: 2 },
 
       fill: {
         type: 'gradient',
-        gradient: {
-          shadeIntensity: 1,
-          opacityFrom: 0.4,
-          opacityTo: 0,
-          stops: [0, 100]
+        gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0, stops: [0, 100] }
+      },
+
+      markers: { size: 6, hover: { size: 7 }, strokeWidth: 2 },
+
+      tooltip: { y: { formatter: val => `${val} days` } },
+
+      legend: {
+        show: true,
+        position: 'bottom',
+        horizontalAlign: 'center',
+        fontSize: '12px',
+        markers: {
+           
+          
+        },
+        itemMargin: {
+          horizontal: 10,
+          vertical: 5
         }
-      },
-
-      markers: {
-        size: 6,
-        hover: { size: 7 },
-        strokeWidth: 2
-      },
-
-      tooltip: {
-        y: {
-          formatter: (val: number) => `${val}`
-        }
-      },
-
-      legend: { show: false }
+      }
     };
   }
-
 
   private lastSixMonths(): string[] {
     const months = [];
     const date = new Date();
-
     for (let i = 5; i >= 0; i--) {
       const d = new Date(date.getFullYear(), date.getMonth() - i, 1);
-      months.push(
-        d.toLocaleString('default', { month: 'short' })
-      );
+      months.push(d.toLocaleString('default', { month: 'short' }));
     }
     return months;
   }

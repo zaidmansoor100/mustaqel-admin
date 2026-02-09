@@ -19,7 +19,7 @@
 @keyframes dash {
     0% {
         stroke-dashoffset: 130
-    } 
+    }
 }
 
 .table-wrap {
@@ -84,4 +84,8 @@
             }
         }
     }
+}
+
+.tabs-res .active {
+    box-shadow: 0 0 11px 0 #1D65D1;
 }

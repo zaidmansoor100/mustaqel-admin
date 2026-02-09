@@ -31,14 +31,14 @@ import {
             [tooltip]="tooltip"
             [legend]="legend">
             </apx-chart>
-            <div class="px-4 flex justify-evenly gap-2">
+            <div class="px-6 grid grid-cols-2 gap-2">
                 <div>
-                    <div class="font-semibold text-md text-black">Current Month</div>
+                    <div class="font-semibold text-base text-black">Current Month</div>
                     <div class="text-xs">Submitted <strong class="text-semibold">550</strong></div>
                     <div class="text-xs">Approved <strong class="text-semibold">550</strong></div>
                 </div>
                 <div class="line-bf">
-                    <div class="font-semibold text-md text-black">Last Month</div>
+                    <div class="font-semibold text-base text-black">Last Month</div>
                     <div class="text-xs">Submitted <strong class="text-semibold">550</strong></div>
                     <div class="text-xs">Approved <strong class="text-semibold">550</strong></div>
                 </div>
