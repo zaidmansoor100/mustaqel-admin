@@ -17,7 +17,7 @@ import {
     selector: 'app-line-widget',
     imports: [CommonModule, NgApexchartsModule],
     template: `
-    <div class="bg-white rounded-2xl shadow-slate-400/15 shadow card-ch py-2">
+    <div class="">
         <h3 class="text-center !mb-0 !text-lg !font-semibold">Monthly Statistics</h3>
         <div class="chart-label">
             <apx-chart
@@ -49,13 +49,12 @@ import {
 })
 export class LineWidgetComponent implements OnChanges {
 
-    @Input() seriesA: number[] = [];
-    @Input() seriesB: number[] = [];
+    @Input() seriesA!: ApexAxisChartSeries;
+
 
     series: ApexAxisChartSeries = [];
 
     chart: ApexChart = {
-        // height: 200,
         type: 'line',
         toolbar: { show: false },
         zoom: { enabled: false }
@@ -90,14 +89,13 @@ export class LineWidgetComponent implements OnChanges {
             style: {
                 colors: '#6b7280',
                 fontSize: '10px',
-
             }
         },
         axisBorder: { show: true },
         axisTicks: { show: true }
     };
 
-    yaxis: ApexYAxis = { 
+    yaxis: ApexYAxis = {
         labels: { show: false },
         min: 0,
         forceNiceScale: false
@@ -114,19 +112,7 @@ export class LineWidgetComponent implements OnChanges {
 
     ngOnChanges() {
         this.xaxis.categories = this.getLast6Months();
-
-        this.series = [
-            {
-                name: 'Series A',
-                data: this.seriesA,
-                color: '#46B6E7',
-            },
-            {
-                name: 'Series B',
-                data: this.seriesB,
-                color: '#1D65D1'
-            }
-        ];
+        this.series = this.seriesA;
     }
 
     private getLast6Months(): string[] {

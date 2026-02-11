@@ -19,7 +19,7 @@ import {
     selector: 'process-widget',
     imports: [CommonModule, NgApexchartsModule],
     template: `
-     <div class="bg-white rounded-2xl shadow-slate-400/15 shadow card-ch py-2">
+     <div class=" ">
         <h3 class="text-center !mb-0 !text-lg !font-semibold">Processing Times</h3>
         <div class="chart-label">
             <apx-chart [series]="series" [chart]="chart" [colors]="colors" [stroke]="stroke"
@@ -37,7 +37,7 @@ export class ProcessWidget {
     colors: string[] = [];
 
 
-    chart: ApexChart = { type: 'donut' };
+    chart: ApexChart = { type: 'donut', };
 
     stroke: ApexStroke = { width: 1, colors: ['#ffffff'] };
 

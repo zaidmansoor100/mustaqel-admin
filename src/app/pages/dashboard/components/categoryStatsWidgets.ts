@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, signal, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RequestService } from '@/services/request.service';
 import { NgApexchartsModule } from 'ng-apexcharts';
@@ -13,14 +13,24 @@ import {
     ApexDataLabels,
     ApexResponsive
 } from 'ng-apexcharts';
+import { FormsModule } from '@angular/forms';
+import { SelectModule } from 'primeng/select';
+import { LayoutService } from '@/layout/service/layout.service';
 
 @Component({
     standalone: true,
-    selector: 'app-entity-widget',
-    imports: [CommonModule, NgApexchartsModule],
+    selector: 'category-stage-widget',
+    imports: [CommonModule, NgApexchartsModule, FormsModule, SelectModule],
     template: `
         <div class="">
-                <h3 class="text-center !mb-0 !text-lg !font-semibold">Entities Performance</h3>
+                <div class="flex justify-between px-4">
+                    <h3 class="!mb-0 !text-lg !font-semibold">Applications</h3>
+                    <div class="filters">
+                        <p-select [options]="categories" size="small" placeholder="Categories" class="w-full"
+                            optionLabel="name"> 
+                        </p-select>
+                    </div>
+                </div>
                 <div class="chart-label">
                     <apx-chart [series]="series" [chart]="chart" [colors]="colors" [stroke]="stroke"
                         [plotOptions]="plotOptions" [legend]="legend" [dataLabels]="dataLabels" [tooltip]="tooltip">
@@ -29,10 +39,8 @@ import {
             </div>
     `
 })
-export class EntityWidget implements OnChanges {
-    constructor(private requestService: RequestService) {
-
-    }
+export class CategoryStatsWidget implements OnChanges {
+    constructor() { }
     @Input() seriesData!: { name: string; value: number; color: string }[];
 
 
@@ -40,7 +48,11 @@ export class EntityWidget implements OnChanges {
     colors: string[] = [];
 
 
-    chart: ApexChart = { type: 'donut', };
+    chart: ApexChart = {
+        type: 'donut',
+        redrawOnParentResize: true,
+        redrawOnWindowResize: true
+    };
 
     stroke: ApexStroke = { width: 1, colors: ['#ffffff'] };
 
@@ -57,7 +69,7 @@ export class EntityWidget implements OnChanges {
                     value: { show: true, fontSize: '18px', fontWeight: 600, color: '#111', offsetY: 4 },
                     total: {
                         show: true,
-                        label: 'Total Processed',
+                        label: 'Total Applications',
                         fontSize: '12px',
                         fontWeight: 500,
                         formatter: () =>
@@ -110,4 +122,10 @@ export class EntityWidget implements OnChanges {
             this.colors = this.seriesData.map(d => d.color);
         }
     }
+
+    categories = [
+        { name: 'By Category' },
+        { name: 'By Stage' },
+    ]
+
 }

@@ -1,16 +1,26 @@
 <div id="dashboard-recidence">
 
     <div class="flex flex-col gap-4">
-        <div class="grid grid-cols-4 gap-4 tabs-res">
-            <div (click)="activeTab = 0" [class.active]="activeTab === 0" class="rounded-2xl"><app-widget
+        <div class="grid grid-cols-5 gap-4 tabs-res">
+            <div (click)="activeTab = 0" [class.active]="activeTab === 0"
+                class="rounded-2xl shadow-slate-400/15 shadow card-ch bg-white py-2"><app-widget
                     [seriesData]="seriesData" /></div>
-            <div (click)="activeTab = 1" [class.active]="activeTab === 1" class="rounded-2xl"><process-widget
+            <div (click)="activeTab = 4" [class.active]="activeTab === 4"
+                class="rounded-2xl shadow-slate-400/15 shadow card-ch bg-white  py-2">
+                <category-stage-widget
+                    [seriesData]="entityData" />
+                </div>
+            <div (click)="activeTab = 1" [class.active]="activeTab === 1"
+                class="rounded-2xl shadow-slate-400/15 shadow card-ch bg-white  py-2"><process-widget
                     [seriesData]="processData" />
             </div>
-            <div (click)="activeTab = 2" [class.active]="activeTab === 2" class="rounded-2xl"><app-entity-widget
+            <div (click)="activeTab = 2" [class.active]="activeTab === 2"
+                class="rounded-2xl shadow-slate-400/15 shadow card-ch bg-white  py-2"><app-entity-widget
                     [seriesData]="entityData" /></div>
-            <div (click)="activeTab = 3" [class.active]="activeTab === 3" class="rounded-2xl">
-                <app-line-widget [seriesA]="[55, 100, 59, 55, 20, 92]" [seriesB]="[89, 30, 100, 69, 76, 105]">
+
+            <div (click)="activeTab = 3" [class.active]="activeTab === 3"
+                class="rounded-2xl shadow-slate-400/15 shadow card-ch bg-white  py-2">
+                <app-line-widget [seriesA]="lineseries">
                 </app-line-widget>
             </div>
 
@@ -359,49 +369,49 @@
                                 <thead>
                                     <tr>
                                         <th>Category</th>
-                                        <th>Submitted</th>
-                                        <th>Approved</th>
-                                        <th>In-process</th>
-                                        <th>Rejected</th>
+                                        <th>Jusour QC Days</th>
+                                        <th>Endorser avg. Response days</th>
+                                        <th>MOL average response days</th>
+                                        <th>Hayya average response days</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
                                         <th>Talents</th>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
+                                        <td>1 Day</td>
+                                        <td>2 Days</td>
+                                        <td>3 Days</td>
+                                        <td>4 Days</td>
                                     </tr>
                                     <tr>
                                         <th>Investors</th>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
+                                        <td>1 Day</td>
+                                        <td>2 Days</td>
+                                        <td>3 Days</td>
+                                        <td>4 Days</td>
                                     </tr>
                                     <tr>
                                         <th>Entrepreneurs</th>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
+                                        <td>1 Day</td>
+                                        <td>2 Days</td>
+                                        <td>3 Days</td>
+                                        <td>4 Days</td>
                                     </tr>
                                     <tr>
                                         <th>Executive</th>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
+                                        <td>1 Day</td>
+                                        <td>2 Days</td>
+                                        <td>3 Days</td>
+                                        <td>4 Days</td>
                                     </tr>
                                 </tbody>
                                 <tfoot>
                                     <tr>
                                         <th>Total</th>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
+                                        <td>1 Day</td>
+                                        <td>2 Days</td>
+                                        <td>3 Days</td>
+                                        <td>4 Days</td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -446,8 +456,8 @@
                             Categories)</span></div>
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-4 mt-4 items-center">
-                <div class="grid grid-cols-4 gap-4">
+            <div class="grid grid-cols-2 gap-4 mt-4 items-start">
+                <div class="grid grid-cols-5 gap-2">
                     <div class="relative">
                         <div
                             class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
@@ -510,56 +520,65 @@
                             </svg>
                         </div>
                     </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">20 </div>
+                                <strong class="block">Under Process</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #FFAE4C">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
 
-                    <div class="col-span-4">
+                    <div class="col-span-5">
                         <div class="table-wrap">
                             <table class="table-stats">
                                 <thead>
                                     <tr>
                                         <th>Category</th>
-                                        <th>Submitted</th>
                                         <th>Approved</th>
-                                        <th>In-process</th>
                                         <th>Rejected</th>
+                                        <th>In-process</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
                                         <th>Talents</th>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
+                                        <td>24</td>
+                                        <td>2 Days</td>
+                                        <td>4 Days</td>
                                     </tr>
                                     <tr>
                                         <th>Investors</th>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
+                                        <td>24</td>
+                                        <td>2 Days</td>
+                                        <td>4 Days</td>
                                     </tr>
                                     <tr>
                                         <th>Entrepreneurs</th>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
+                                        <td>24</td>
+                                        <td>2 Days</td>
+                                        <td>4 Days</td>
                                     </tr>
                                     <tr>
                                         <th>Executive</th>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
+                                        <td>24</td>
+                                        <td>2 Days</td>
+                                        <td>4 Days</td>
                                     </tr>
                                 </tbody>
                                 <tfoot>
                                     <tr>
                                         <th>Total</th>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
-                                        <td>12,9083</td>
+                                        <td>24</td>
+                                        <td>2 Days</td>
+                                        <td>4 Days</td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -578,7 +597,7 @@
         <div class="bg-white rounded-2xl shadow-slate-400/15 shadow card-ch p-4 ">
             <div class="top-bar-map flex justify-between">
                 <div class="header-map">
-                    <div class="font-semibold text-lg">Monthly Statistics  </div>
+                    <div class="font-semibold text-lg">Monthly Statistics </div>
                     <div class="font-normal text-xs">1-15-2026 - 3-15-2026</div>
                 </div>
                 <div class="filters grid grid-cols-5 gap-2 max-w-[600px]">
@@ -626,17 +645,17 @@
                     </app-bar-multi-widget>
                 </div>
                 <div>
-                    <div class="text-base font-semibold text-black">Rejection Rate</div> 
+                    <div class="text-base font-semibold text-black">Rejection Rate</div>
                     <app-bar-multi-widget [chartSeries]="barSeries" [categories]="months">
                     </app-bar-multi-widget>
                 </div>
                 <div>
-                    <div class="text-base font-semibold text-black">Response Performance Time</div> 
+                    <div class="text-base font-semibold text-black">Response Performance Time</div>
                     <app-bar-multi-widget [chartSeries]="barSeries" [categories]="months">
                     </app-bar-multi-widget>
                 </div>
                 <div>
-                    <div class="text-base font-semibold text-black">Application Backlog </div> 
+                    <div class="text-base font-semibold text-black">Application Backlog </div>
                     <app-bar-multi-widget [chartSeries]="barSeries" [categories]="months">
                     </app-bar-multi-widget>
                 </div>

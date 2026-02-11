@@ -13,13 +13,18 @@ import { CommonModule } from '@angular/common';
 import { AreaChartComponent } from './components/lineWidgetComponent';
 import { RadarChartComponent } from './components/radarChart';
 import { BarMultiWidgetComponent } from './components/barMultiWidget';
+import { effect } from '@angular/core';
+import { LayoutService } from '@/layout/service/layout.service';
+import { CategoryStatsWidget } from './components/categoryStatsWidgets';
 
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   imports: [ApplicationWidget, ProcessWidget, EntityWidget, LineWidgetComponent, CommonModule, FormsModule,
-    DatePickerModule, SelectModule, FloatLabelModule, AreaChartComponent, RadarChartComponent, BarMultiWidgetComponent],
+    DatePickerModule, SelectModule, FloatLabelModule, AreaChartComponent, RadarChartComponent, BarMultiWidgetComponent,
+    CategoryStatsWidget
+  ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss'
 })
@@ -29,8 +34,17 @@ export class DashboardComponent implements OnInit {
 
   constructor(
     private configuration: ConfigurationService,
-    private messageService: MessageService
-  ) { }
+    private messageService: MessageService,
+    private layoutService: LayoutService
+  ) {
+    effect(() => {
+      this.layoutService.layoutState();
+
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 0);
+    });
+  }
   value1: Date | undefined;
   categories = []
   seriesData = [
@@ -97,6 +111,19 @@ export class DashboardComponent implements OnInit {
       name: 'Hayya',
       data: [20, 25, 22, 30, 28, 34],
       color: '#71FF04'
+    }
+  ];
+
+  lineseries = [
+    {
+      name: 'Current Month',
+      data: [10, 10, 18, 10, 5, 20],
+      color: '#46B6E7',
+    },
+    {
+      name: 'Previous Month',
+      data: [5, 18, 10, 25, 0, 18],
+      color: '#1D65D1'
     }
   ];
 
