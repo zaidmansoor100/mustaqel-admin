@@ -1,20 +1,667 @@
-<div class="grid grid-cols-12 gap-4">
-    <!-- <app-stats-widget class="contents" /> -->
-     <div class="col-span-12  ">
-        <app-bars-widget/> 
-     </div> 
-     <!-- <div class="col-span-4">
-        <app-talent-widget />
-     </div> -->
-    <div class="col-span-12 ">
-        <!-- <app-recent-sales-widget /> -->
-        <!-- <app-best-selling-widget /> -->
-        <app-revenue-stream-widget title="Investor" />
-        
+<div id="dashboard-recidence">
+
+    <div class="flex flex-col gap-4">
+        <div class="grid grid-cols-5 gap-4 tabs-res">
+            <div (click)="activeTab = 0" [class.active]="activeTab === 0"
+                class="rounded-2xl shadow-slate-400/15 shadow card-ch bg-white py-2"><app-widget
+                    [seriesData]="seriesData" /></div>
+            <div (click)="activeTab = 4" [class.active]="activeTab === 4"
+                class="rounded-2xl shadow-slate-400/15 shadow card-ch bg-white  py-2">
+                <category-stage-widget
+                    [seriesData]="entityData" />
+                </div>
+            <div (click)="activeTab = 1" [class.active]="activeTab === 1"
+                class="rounded-2xl shadow-slate-400/15 shadow card-ch bg-white  py-2"><process-widget
+                    [seriesData]="processData" />
+            </div>
+            <div (click)="activeTab = 2" [class.active]="activeTab === 2"
+                class="rounded-2xl shadow-slate-400/15 shadow card-ch bg-white  py-2"><app-entity-widget
+                    [seriesData]="entityData" /></div>
+
+            <div (click)="activeTab = 3" [class.active]="activeTab === 3"
+                class="rounded-2xl shadow-slate-400/15 shadow card-ch bg-white  py-2">
+                <app-line-widget [seriesA]="lineseries">
+                </app-line-widget>
+            </div>
+
+        </div>
+
+
+        @if (activeTab === 0) {
+        <div class="bg-white rounded-2xl shadow-slate-400/15 shadow card-ch p-4 ">
+            <div class="top-bar-map flex justify-between">
+                <div class="header-map">
+                    <div class="font-semibold text-lg">Applications <span class="font-normal text-sm">(All
+                            Categories)</span></div>
+                    <div class="font-normal text-xs">1-15-2026 - 3-15-2026</div>
+                </div>
+                <div class="filters grid grid-cols-3 gap-2 max-w-[400px]">
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="Start Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="End Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-select [options]="categories" size="small" placeholder="Categories" class="w-full"
+                            optionLabel="name">
+                            <ng-template #dropdownicon>
+                                <i class="pi-objects-column pi text-[#0779F5]"></i>
+                            </ng-template>
+                        </p-select>
+                    </div>
+                </div>
+                <div class="header-map">
+                    <div class="font-semibold text-lg">Applications <span class="font-normal text-sm">(All
+                            Categories)</span></div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4 items-center">
+                <div class="grid grid-cols-5 gap-4">
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">560</div>
+
+                                <strong class="block">Submitted</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #C4D8FA">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">360</div>
+
+                                <strong class="block">QC Approved</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #1B9FF0">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">360</div>
+
+                                <strong class="block">Endorsed</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #1D65D1">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">360</div>
+
+                                <strong class="block">MOL approved</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #2FBACB">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">360</div>
+
+                                <strong class="block">Hayya approved</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #A0D467">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">360</div>
+
+                                <strong class="block">QC rejected</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #FFF425">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">360</div>
+
+                                <strong class="block">Endorser rejected</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #FAAC04">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">360</div>
+
+                                <strong class="block">MOL rejected</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #FA8304">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">360</div>
+
+                                <strong class="block">Hayya rejected</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #A20F0F">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+
+                </div>
+                <div>
+                    <div class="table-wrap">
+                        <table class="table-stats">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Submitted</th>
+                                    <th>Approved</th>
+                                    <th>In-process</th>
+                                    <th>Rejected</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <th>Talents</th>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                </tr>
+                                <tr>
+                                    <th>Investors</th>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                </tr>
+                                <tr>
+                                    <th>Entrepreneurs</th>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                </tr>
+                                <tr>
+                                    <th>Executive</th>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th>Total</th>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                    <td>12,9083</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        }
+
+
+        @if (activeTab === 1) {
+        <div class="bg-white rounded-2xl shadow-slate-400/15 shadow card-ch p-4 ">
+            <div class="top-bar-map flex justify-between">
+                <div class="header-map">
+                    <div class="font-semibold text-lg">Processing Times <span class="font-normal text-sm">(All
+                            Categories)</span></div>
+                    <div class="font-normal text-xs">1-15-2026 - 3-15-2026</div>
+                </div>
+                <div class="filters grid grid-cols-3 gap-2 max-w-[400px]">
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="Start Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="End Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-select [options]="categories" size="small" placeholder="Categories" class="w-full"
+                            optionLabel="name">
+                            <ng-template #dropdownicon>
+                                <i class="pi-objects-column pi text-[#0779F5]"></i>
+                            </ng-template>
+                        </p-select>
+                    </div>
+                </div>
+                <div class="header-map">
+                    <div class="font-semibold text-lg">Applications <span class="font-normal text-sm">(All
+                            Categories)</span></div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4 items-center">
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">2.4 <span
+                                        class="font-normal text-base">days</span></div>
+                                <strong class="block">Jusour QC Time</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #C4D8FA">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">3.4 <span
+                                        class="font-normal text-base">days</span></div>
+                                <strong class="block">Endorser Response Time</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #1B9FF0">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">5.4 <span
+                                        class="font-normal text-base">days</span></div>
+                                <strong class="block">MOL Response Time</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #1D65D1">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">4.4 <span
+                                        class="font-normal text-base">days</span></div>
+                                <strong class="block">Hayya Response Time</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #2FBACB">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="col-span-4">
+                        <div class="table-wrap">
+                            <table class="table-stats">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Jusour QC Days</th>
+                                        <th>Endorser avg. Response days</th>
+                                        <th>MOL average response days</th>
+                                        <th>Hayya average response days</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <th>Talents</th>
+                                        <td>1 Day</td>
+                                        <td>2 Days</td>
+                                        <td>3 Days</td>
+                                        <td>4 Days</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Investors</th>
+                                        <td>1 Day</td>
+                                        <td>2 Days</td>
+                                        <td>3 Days</td>
+                                        <td>4 Days</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Entrepreneurs</th>
+                                        <td>1 Day</td>
+                                        <td>2 Days</td>
+                                        <td>3 Days</td>
+                                        <td>4 Days</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Executive</th>
+                                        <td>1 Day</td>
+                                        <td>2 Days</td>
+                                        <td>3 Days</td>
+                                        <td>4 Days</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th>Total</th>
+                                        <td>1 Day</td>
+                                        <td>2 Days</td>
+                                        <td>3 Days</td>
+                                        <td>4 Days</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-left !mb-0 !text-lg !font-semibold">Monthly Trends</h3>
+                    <app-area-chart [seriesData]="series"></app-area-chart>
+                </div>
+            </div>
+        </div>
+        }
+        @if (activeTab === 2) {
+        <div class="bg-white rounded-2xl shadow-slate-400/15 shadow card-ch p-4 ">
+            <div class="top-bar-map flex justify-between">
+                <div class="header-map">
+                    <div class="font-semibold text-lg">Entities Performance <span class="font-normal text-sm">(All
+                            Categories)</span></div>
+                    <div class="font-normal text-xs">1-15-2026 - 3-15-2026</div>
+                </div>
+                <div class="filters grid grid-cols-3 gap-2 max-w-[400px]">
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="Start Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="End Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-select [options]="categories" size="small" placeholder="Entities" class="w-full"
+                            optionLabel="name">
+                            <ng-template #dropdownicon>
+                                <i class="pi-objects-column pi text-[#0779F5]"></i>
+                            </ng-template>
+                        </p-select>
+                    </div>
+                </div>
+                <div class="header-map">
+                    <div class="font-semibold text-lg">Applications <span class="font-normal text-sm">(All
+                            Categories)</span></div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4 items-start">
+                <div class="grid grid-cols-5 gap-2">
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">246</div>
+                                <strong class="block">Applications</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #C4D8FA">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">1,850</div>
+                                <strong class="block">Applications Approved</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #1B9FF0">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">2.4 <span
+                                        class="font-normal text-base">days</span></div>
+                                <strong class="block">Avg. Processing Time</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #1D65D1">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">150 </div>
+
+                                <strong class="block">Applications Rejected</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #2FBACB">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <div
+                            class=" text-center flex justify-between items-center absolute left-0 right-0 top-0 bottom-0 m-auto max-w-[80%]">
+                            <div class="m-auto">
+                                <div class="font-bold text-lg text-black leading-4">20 </div>
+                                <strong class="block">Under Process</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <svg viewBox="0 0 48 48">
+                                <circle class="percent-circle" r="21" cx="24" cy="24" style=" --stoke-color: #FFAE4C">
+                                </circle>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="col-span-5">
+                        <div class="table-wrap">
+                            <table class="table-stats">
+                                <thead>
+                                    <tr>
+                                        <th>Category</th>
+                                        <th>Approved</th>
+                                        <th>Rejected</th>
+                                        <th>In-process</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <th>Talents</th>
+                                        <td>24</td>
+                                        <td>2 Days</td>
+                                        <td>4 Days</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Investors</th>
+                                        <td>24</td>
+                                        <td>2 Days</td>
+                                        <td>4 Days</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Entrepreneurs</th>
+                                        <td>24</td>
+                                        <td>2 Days</td>
+                                        <td>4 Days</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Executive</th>
+                                        <td>24</td>
+                                        <td>2 Days</td>
+                                        <td>4 Days</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th>Total</th>
+                                        <td>24</td>
+                                        <td>2 Days</td>
+                                        <td>4 Days</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <app-radar-chart [series]="[85, 60, 72, 90, 55]">
+                    </app-radar-chart>
+                </div>
+            </div>
+        </div>
+        }
+
+        @if (activeTab === 3) {
+        <div class="bg-white rounded-2xl shadow-slate-400/15 shadow card-ch p-4 ">
+            <div class="top-bar-map flex justify-between">
+                <div class="header-map">
+                    <div class="font-semibold text-lg">Monthly Statistics </div>
+                    <div class="font-normal text-xs">1-15-2026 - 3-15-2026</div>
+                </div>
+                <div class="filters grid grid-cols-5 gap-2 max-w-[600px]">
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="Start Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-datepicker [(ngModel)]="value1" size="small" placeholder="End Date" showIcon
+                            iconDisplay="input" />
+                    </div>
+                    <div>
+                        <p-select [options]="categories" size="small" placeholder="Categories" class="w-full"
+                            optionLabel="name">
+                            <ng-template #dropdownicon>
+                                <i class="pi-objects-column pi text-[#0779F5]"></i>
+                            </ng-template>
+                        </p-select>
+                    </div>
+                    <div>
+                        <p-select [options]="categories" size="small" placeholder="Entities" class="w-full"
+                            optionLabel="name">
+                            <ng-template #dropdownicon>
+                                <i class="pi-sitemap column pi text-[#0779F5]"></i>
+                            </ng-template>
+                        </p-select>
+                    </div>
+                    <div>
+                        <p-select [options]="categories" size="small" placeholder="Aggregation" class="w-full"
+                            optionLabel="name">
+                            <ng-template #dropdownicon>
+                                <i class="pi-chart-bar pi text-[#0779F5]"></i>
+                            </ng-template>
+                        </p-select>
+                    </div>
+                </div>
+                <div class="header-map">
+                    <div class="font-semibold text-lg">&nbsp;</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-y-0 gap-x-6 mt-4 items-center">
+                <div>
+                    <div class="text-base font-semibold text-black">Applications Performance</div>
+                    <app-bar-multi-widget [chartSeries]="barSeries" [categories]="months">
+                    </app-bar-multi-widget>
+                </div>
+                <div>
+                    <div class="text-base font-semibold text-black">Rejection Rate</div>
+                    <app-bar-multi-widget [chartSeries]="barSeries" [categories]="months">
+                    </app-bar-multi-widget>
+                </div>
+                <div>
+                    <div class="text-base font-semibold text-black">Response Performance Time</div>
+                    <app-bar-multi-widget [chartSeries]="barSeries" [categories]="months">
+                    </app-bar-multi-widget>
+                </div>
+                <div>
+                    <div class="text-base font-semibold text-black">Application Backlog </div>
+                    <app-bar-multi-widget [chartSeries]="barSeries" [categories]="months">
+                    </app-bar-multi-widget>
+                </div>
+            </div>
+        </div>
+        }
     </div>
-    <div class="col-span-12 xl:col-span-6 hidden">
-        <app-revenue-stream-widget title="Entrepreneur" />
-        <!-- <app-notifications-widget /> -->
-         <!-- <app-reporting-graph /> -->
-    </div>
+
 </div>

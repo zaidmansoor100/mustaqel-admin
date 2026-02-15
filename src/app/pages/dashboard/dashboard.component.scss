@@ -1,0 +1,91 @@
+.apexcharts-legend-marker {
+    width: 12px !important;
+    height: 12px !important;
+    border-radius: 50%;
+}
+
+.percent-circle {
+    fill: none;
+    stroke: var(--stoke-color);
+    stroke-width: 3.7px;
+    stroke-linecap: round;
+    stroke-dasharray: 131;
+
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+    animation: dash 1s
+}
+
+@keyframes dash {
+    0% {
+        stroke-dashoffset: 130
+    }
+}
+
+.table-wrap {
+    border: 1px solid #DCDFE3;
+    overflow: hidden;
+    border-radius: 10px;
+}
+
+.table-stats {
+    width: 100%;
+
+
+    td,
+    th {
+        padding: 8px 10px;
+    }
+
+    thead {
+        background: #202E5D;
+        background: linear-gradient(90deg, rgba(32, 46, 93, 1) 0%, rgba(52, 63, 143, 1) 60%, rgba(74, 85, 181, 1) 100%);
+
+        tr {
+            th {
+                color: #fff;
+                text-align: left;
+            }
+        }
+    }
+
+    tbody {
+        tr {
+            th {
+                background-color: #EEF0F7;
+                border-bottom: 1px solid #fff;
+                text-align: left;
+            }
+
+            td {
+                border-bottom: 1px solid #DCDFE3;
+                ;
+            }
+
+            &:last-child {
+
+                td,
+                th {
+                    border-bottom: 0;
+                }
+            }
+        }
+    }
+
+    tfoot {
+        background: #8E1537;
+        background: linear-gradient(90deg, rgba(142, 21, 55, 1) 0%, rgba(193, 65, 101, 1) 60%, rgba(229, 126, 155, 1) 100%);
+
+        tr {
+
+            td,
+            th {
+                color: #fff;
+            }
+        }
+    }
+}
+
+.tabs-res .active {
+    box-shadow: 0 0 11px 0 #1D65D1;
+}
