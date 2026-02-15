@@ -41,57 +41,25 @@
             <td>{{ field.id }}</td>
             <td>{{ field.nameEn }}</td>
             <td>{{ field.nameAr }}</td>
-            <td>
-                <p-tag severity="info" class="mr-1 mb-1" *ngIf="field.formMetas?.category">
-                    <span style="color:#475569 !important;">Category: </span>
-                    <span>{{field.formMetas?.category?.name}}</span>
-                </p-tag>
-
-                <p-tag severity="info" class="mr-1 mb-1" *ngIf="field.formMetas?.subCategory">
-                    <span style="color:#475569 !important;">Sub Category: </span>
-                    <span>{{field.formMetas?.subCategory?.name}}</span>
-                </p-tag>
-
-                <p-tag severity="info" class="mr-1 mb-1" *ngIf="field.formMetas?.sector">
-                    <span style="color:#475569 !important;">Sector: </span>
-                    <span>{{field.formMetas?.sector?.name}}</span>
-                </p-tag>
-
-                <p-tag severity="info" class="mr-1 mb-1" *ngIf="field.formMetas?.activity">
-                    <span style="color:#475569 !important;">Activity: </span>
-                    <span>{{field.formMetas?.activity?.name}}</span>
-                </p-tag>
-
-                <p-tag severity="info" class="mr-1 mb-1" *ngIf="field.formMetas?.subActivity">
-                    <span style="color:#475569 !important;">Sub Activity: </span>
-                    <span>{{field.formMetas?.subActivity?.name}}</span>
-                </p-tag>
-
-                <p-tag severity="info" class="mr-1 mb-1" *ngIf="field.formMetas?.entity">
-                    <span style="color:#475569 !important;">Entity: </span>
-                    <span>{{field.formMetas?.entity?.name}}</span>
-                </p-tag>
-
-                <p-tag severity="info" class="mr-1 mb-1" *ngIf="field.formMetas?.incubator">
-                    <span style="color:#475569 !important;">Incubator: </span>
-                    <span>{{field.formMetas?.incubator?.name}}</span>
-                </p-tag>
-            </td>
             <td>{{ field.type }}</td>
             <td>
-                <p-tag severity="info" class="mr-1 mb-1" [value]="field.onshoreOffShore"></p-tag>
+                <ng-container *ngIf="field.formMetas">
+                    <p-tag severity="info" class="mr-1 mb-1" [value]="field.formMetas.onshoreOffShore"></p-tag>
+                </ng-container>
             </td>
             <td>
-                <p-tag [severity]="field.isRequired === 1 ? 'success' : 'danger'"
-                    [value]="field.isRequired === 1 ? 'true' : 'false'" />
+                <ng-container *ngIf="field.formMetas">
+                    <p-tag [severity]="field.formMetas.isRequired === 1 ? 'success' : 'danger'"
+                        [value]="field.formMetas.isRequired === 1 ? 'true' : 'false'" />
+                </ng-container>
             </td>
             <td>
-                <ng-container *ngIf="field.meta.extensions?.length > 0; else noCat">
+                <ng-container *ngIf="field.meta?.extensions?.length > 0; else noCat">
                     <p-tag *ngFor="let ext of field.meta.extensions" severity="info" class="mr-1 mb-1" [value]="ext">
                     </p-tag>
                 </ng-container>
                 <ng-template #noCat>
-                    <span>No Categories</span>
+                    <span>No Extensions</span>
                 </ng-template>
             </td>
             <td>{{ field.created_at | date:'short' }}</td>
@@ -110,113 +78,230 @@
     </ng-template>
 </p-table>
 
-<p-dialog [(visible)]="formFieldDialog" [style]="{ width: '700px' }" header="Category Details" [modal]="true">
+<p-dialog [(visible)]="formFieldDialog" [style]="{ width: '900px' }" header="Field Details" [modal]="true">
     <ng-template #content>
-        <div class="grid grid-cols-3 gap-6" [formGroup]="formFieldForm">
-            <ng-container formGroupName="identificationData">
-                <div class="mb-4">
-                    <label for="category" class="block font-bold mb-3">Select Category</label>
-                    <p-select appendTo="body" [options]="categories" optionLabel="name" optionValue="slug"
-                        [filter]="true" placeholder="Categories" class="w-full" required formControlName="category"
-                        (onChange)="onDropDownChange('category',$event.value)" />
+        <form [formGroup]="formFieldForm" (ngSubmit)="saveFormField()">
+            <div class="grid grid-cols-2 gap-6">
+                <!-- Form Fields Section -->
+                <ng-container formGroupName="formFields">
+                    <div class="col-span-2 grid grid-cols-2 gap-4 mb-6 p-4 border rounded-lg">
+                        <h3 class="col-span-2 font-bold text-lg mb-2">Field Information</h3>
+
+                        <div class="mb-4">
+                            <label for="nameEn" class="block font-bold mb-2">Name (English)</label>
+                            <input class="w-full" type="text" pInputText id="nameEn" required autofocus
+                                formControlName="nameEn" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="nameAr" class="block font-bold mb-2">Name (Arabic)</label>
+                            <input class="w-full" type="text" pInputText id="nameAr" required
+                                formControlName="nameAr" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="type" class="block font-bold mb-2">Type</label>
+                            <p-select appendTo="body" [options]="fieldTypes" optionLabel="name" optionValue="name"
+                                [filter]="true" placeholder="Field Type" class="w-full" required formControlName="type"
+                                (onChange)="onFieldTypeChange($event.value)" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="status" class="block font-bold mb-2">Status</label>
+                            <p-select appendTo="body" [options]="status" optionLabel="name" optionValue="id"
+                                placeholder="Status" class="w-full" required formControlName="status" />
+                        </div>
+                    </div>
+                </ng-container>
+
+                <!-- Meta Fields Section - Dynamic based on type -->
+                <ng-container formGroupName="metaFields">
+                    <div class="col-span-2 mb-6 p-4 border rounded-lg">
+                        <h3 class="font-bold text-lg mb-2">Meta Information</h3>
+
+                        <!-- File Type: Show Extensions -->
+                        <div class="mb-4" *ngIf="currentFieldType === 'file'">
+                            <label for="extensions" class="block font-bold mb-2">Allowed File Extensions</label>
+                            <p-multiselect appendTo="body" [options]="extensions" [filter]="true" optionLabel="name"
+                                optionValue="name" placeholder="Select Extensions" [maxSelectedLabels]="3"
+                                class="w-full" formControlName="extensions" />
+                        </div>
+
+                        <!-- Select/Radio/Checkbox Type: Show Dropdown Options Builder -->
+                        <div class="mb-4"
+                            *ngIf="currentFieldType === 'select' || currentFieldType === 'radio' || currentFieldType === 'checkbox'">
+                            <label class="block font-bold mb-2">Options for {{currentFieldType}}</label>
+                            <div class="mb-3">
+                                <div class="flex gap-2 mb-2">
+                                    <input #optionInput type="text" pInputText placeholder="Enter an option"
+                                        class="flex-grow"
+                                        (keyup.enter)="addDropdownOption(optionInput.value); optionInput.value=''" />
+                                    <button pButton type="button" icon="pi pi-plus" class="p-button-primary"
+                                        (click)="addDropdownOption(optionInput.value); optionInput.value=''"></button>
+                                </div>
+
+                                <div *ngIf="dropdownOptions.length > 0" class="mt-3">
+                                    <p class="font-medium mb-2">Options List:</p>
+                                    <div class="flex flex-wrap gap-2">
+                                        <p-tag *ngFor="let option of dropdownOptions; let i = index" [value]="option"
+                                            severity="info" styleClass="mb-1">
+                                            <button pButton type="button" icon="pi pi-times"
+                                                class="p-button-text p-button-sm ml-2"
+                                                (click)="removeDropdownOption(i)"></button>
+                                        </p-tag>
+                                    </div>
+                                </div>
+                                <div *ngIf="dropdownOptions.length === 0" class="text-gray-500 italic">
+                                    No options added yet. Add options above.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Text/Textarea Type: No meta fields needed -->
+                        <div class="mb-4" *ngIf="currentFieldType === 'text' || currentFieldType === 'textarea'">
+                            <p class="text-gray-500 italic">No additional configuration needed for {{currentFieldType}}
+                                fields.</p>
+                        </div>
+
+                        <!-- No Type Selected -->
+                        <div class="mb-4" *ngIf="!currentFieldType">
+                            <p class="text-gray-500 italic">Select a field type to see configuration options.</p>
+                        </div>
+                    </div>
+                </ng-container>
+
+                <!-- Identification Data Array Section -->
+                <div class="col-span-2">
+                    <h3 class="text-lg font-bold mb-4">Identification Data</h3>
+
+                    <div formArrayName="identificationData">
+                        <div *ngFor="let idData of identificationDataFormArray.controls; let i = index"
+                            [formGroupName]="i" class="grid grid-cols-1 gap-4 mb-6 p-4 border rounded-lg">
+
+                            <div class="grid grid-cols-3 gap-4 mb-4">
+                                <!-- Key Field - Auto-populated from category -->
+                                <div class="hidden">
+                                    <label [for]="'key-' + i" class="block font-bold mb-2">Key (Auto-filled)</label>
+                                    <input class="w-full" type="text" pInputText [id]="'key-' + i" required
+                                        formControlName="key" placeholder="Will auto-fill from category" readonly />
+                                    <small class="text-gray-500">Auto-filled from selected category</small>
+                                </div>
+
+                                <!-- Onshore/Offshore Field -->
+                                <div>
+                                    <label [for]="'onshoreOffShore-' + i" class="block font-bold mb-2">Onshore /
+                                        Offshore</label>
+                                    <p-select appendTo="body" [options]="onshoreOffShoreType" optionLabel="name"
+                                        optionValue="name" [filter]="true" placeholder="Select Type" class="w-full"
+                                        required [formControlName]="'onshoreOffShore'"
+                                        [attr.id]="'onshoreOffShore-' + i" />
+                                </div>
+
+                                <!-- Is Required Field -->
+                                <div>
+                                    <label [for]="'isRequired-' + i" class="block font-bold mb-2">Is Required</label>
+                                    <p-select appendTo="body" [options]="idRequired" optionLabel="name"
+                                        optionValue="value" [filter]="true" placeholder="Required?" class="w-full"
+                                        required [formControlName]="'isRequired'" [attr.id]="'isRequired-' + i" />
+                                </div>
+                            </div>
+
+                            <!-- Value Object (Nested Fields) -->
+                            <div class="grid grid-cols-7 gap-4">
+                                <h4 class="col-span-7 font-bold mb-2">Identification Details</h4>
+
+                                <!-- Category -->
+                                <div class="mb-2">
+                                    <label [for]="'categorySlug-' + i" class="block font-bold mb-2 text-sm">Category
+                                        *</label>
+                                    <p-select appendTo="body" [options]="categories" optionLabel="name"
+                                        optionValue="slug" [filter]="true" placeholder="Category" class="w-full"
+                                        required formControlName="categorySlug"
+                                        (onChange)="onDropDownChange('categorySlug', $event.value, i)"
+                                        [attr.id]="'categorySlug-' + i" />
+                                    <small class="text-gray-500 hidden">Key will be set to category slug</small>
+                                </div>
+
+                                <!-- Sub Category -->
+                                <div class="mb-2" *ngIf="getSubCategories(i) && getSubCategories(i).length > 0">
+                                    <label [for]="'subCategorySlug-' + i" class="block font-bold mb-2 text-sm">Sub
+                                        Category</label>
+                                    <p-select appendTo="body" [options]="getSubCategories(i)" optionLabel="name"
+                                        optionValue="slug" [filter]="true" placeholder="Sub Category" class="w-full"
+                                        formControlName="subCategorySlug" [attr.id]="'subCategorySlug-' + i" />
+                                </div>
+
+                                <!-- Sector -->
+                                <div class="mb-2" *ngIf="getSectors(i) && getSectors(i).length > 0">
+                                    <label [for]="'sectorSlug-' + i" class="block font-bold mb-2 text-sm">Sector</label>
+                                    <p-select appendTo="body" [options]="getSectors(i)" optionLabel="name"
+                                        optionValue="slug" [filter]="true" placeholder="Sector" class="w-full"
+                                        formControlName="sectorSlug"
+                                        (onChange)="onDropDownChange('sectorSlug', $event.value, i)"
+                                        [attr.id]="'sectorSlug-' + i" />
+                                </div>
+
+                                <!-- Activity -->
+                                <div class="mb-2" *ngIf="getActivities(i) && getActivities(i).length > 0">
+                                    <label [for]="'activitySlug-' + i"
+                                        class="block font-bold mb-2 text-sm">Activity</label>
+                                    <p-select appendTo="body" [options]="getActivities(i)" optionLabel="name"
+                                        optionValue="slug" [filter]="true" placeholder="Activity" class="w-full"
+                                        formControlName="activitySlug"
+                                        (onChange)="onDropDownChange('activitySlug', $event.value, i)"
+                                        [attr.id]="'activitySlug-' + i" />
+                                </div>
+
+                                <!-- Sub Activity -->
+                                <div class="mb-2" *ngIf="getSubActivities(i) && getSubActivities(i).length > 0">
+                                    <label [for]="'subActivitySlug-' + i" class="block font-bold mb-2 text-sm">Sub
+                                        Activity</label>
+                                    <p-select appendTo="body" [options]="getSubActivities(i)" optionLabel="name"
+                                        optionValue="slug" [filter]="true" placeholder="Sub Activity" class="w-full"
+                                        formControlName="subActivitySlug" [attr.id]="'subActivitySlug-' + i" />
+                                </div>
+
+                                <!-- Entity -->
+                                <div class="mb-2" *ngIf="getEntities(i) && getEntities(i).length > 0">
+                                    <label [for]="'entitySlug-' + i" class="block font-bold mb-2 text-sm">Entity</label>
+                                    <p-select appendTo="body" [options]="getEntities(i)" optionLabel="name"
+                                        optionValue="slug" [filter]="true" placeholder="Entity" class="w-full"
+                                        formControlName="entitySlug" [attr.id]="'entitySlug-' + i" />
+                                </div>
+
+                                <!-- Incubator -->
+                                <div class="mb-2" *ngIf="getIncubators(i) && getIncubators(i).length > 0">
+                                    <label [for]="'incubatorSlug-' + i"
+                                        class="block font-bold mb-2 text-sm">Incubator</label>
+                                    <p-select appendTo="body" [options]="getIncubators(i)" optionLabel="name"
+                                        optionValue="slug" [filter]="true" placeholder="Incubator" class="w-full"
+                                        formControlName="incubatorSlug" [attr.id]="'incubatorSlug-' + i" />
+                                </div>
+                            </div>
+
+                            <!-- Remove Button -->
+                            <div class="flex justify-end mt-2">
+                                <button pButton type="button" label="Remove" icon="pi pi-trash"
+                                    class="p-button-danger p-button-sm" (click)="removeIdentificationData(i)"
+                                    *ngIf="identificationDataFormArray.length > 1"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add New Identification Data Button -->
+                    <div class="mt-2">
+                        <button pButton type="button" label="Add Identification Data" icon="pi pi-plus"
+                            class="p-button-secondary p-button-sm" (click)="addIdentificationData()"></button>
+                    </div>
                 </div>
-
-                <div class="mb-4" *ngIf="subCategories && subCategories.length > 0">
-                    <label for="subCategory" class="block font-bold mb-3">Select Sub Category</label>
-                    <p-select appendTo="body" [options]="subCategories" optionLabel="name" optionValue="slug"
-                        [filter]="true" placeholder="Sub Categories" class="w-full" required
-                        formControlName="subCategory" />
-                </div>
-
-                <div class="mb-4" *ngIf="sectors && sectors.length > 0">
-                    <label for="sector" class="block font-bold mb-3">Select Sector</label>
-                    <p-select appendTo="body" [options]="sectors" optionLabel="name" optionValue="slug" [filter]="true"
-                        placeholder="Sectors" class="w-full" required formControlName="sector"
-                        (onChange)="onDropDownChange('sector',$event.value)" />
-                </div>
-
-                <div class="mb-4" *ngIf="activities && activities.length > 0">
-                    <label for="activity" class="block font-bold mb-3">Select Activity</label>
-                    <p-select appendTo="body" [options]="activities" optionLabel="name" optionValue="slug"
-                        [filter]="true" placeholder="Activities" class="w-full" required formControlName="activity"
-                        (onChange)="onDropDownChange('activity',$event.value)" />
-                </div>
-
-                <div class="mb-4" *ngIf="subActivities && subActivities.length > 0">
-                    <label for="subActivity" class="block font-bold mb-3">Select Sub Activity</label>
-                    <p-select appendTo="body" [options]="subActivities" optionLabel="name" optionValue="slug"
-                        [filter]="true" placeholder="Sub Activities" class="w-full" required
-                        formControlName="subActivity" />
-                </div>
-
-                <div class="mb-4" *ngIf="entities && entities.length > 0">
-                    <label for="entity" class="block font-bold mb-3">Select Entity</label>
-                    <p-select appendTo="body" [options]="entities" optionLabel="name" optionValue="slug" [filter]="true"
-                        placeholder="Entities" class="w-full" required formControlName="entity" />
-                </div>
-
-                <div class="mb-4" *ngIf="incubators && incubators.length > 0">
-                    <label for="incubator" class="block font-bold mb-3">Select Incubator</label>
-                    <p-select appendTo="body" [options]="incubators" optionLabel="name" optionValue="slug"
-                        [filter]="true" placeholder="Incubators" class="w-full" required formControlName="incubator" />
-                </div>
-            </ng-container>
-
-            <ng-container formGroupName="formFields">
-                <div class="mb-4">
-                    <label for="nameEn" class="block font-bold mb-3">Name (English)</label>
-                    <input class="w-full" type="text" pInputText id="nameEn" required autofocus
-                        formControlName="nameEn" />
-                </div>
-
-                <div class="mb-4">
-                    <label for="nameAr" class="block font-bold mb-3">Name (Arabic)</label>
-                    <input class="w-full" type="text" pInputText id="nameAr" required formControlName="nameAr" />
-                </div>
-
-                <div class="mb-4">
-                    <label for="type" class="block font-bold mb-3">Type</label>
-                    <p-select appendTo="body" [options]="fieldTypes" optionLabel="name" optionValue="name"
-                        [filter]="true" placeholder="Field Type" class="w-full" required formControlName="type" />
-                </div>
-
-                <div class="mb-4">
-                    <label for="onshoreOffShore" class="block font-bold mb-3">Onshore / Offshore</label>
-                    <p-select appendTo="body" [options]="onshoreOffShoreType" optionLabel="name" optionValue="name"
-                        [filter]="true" placeholder="onshore / OffShore" class="w-full" required
-                        formControlName="onshoreOffShore" />
-                </div>
-
-                <div class="mb-4">
-                    <label for="isRequired" class="block font-bold mb-3">Is Required</label>
-                    <p-select appendTo="body" [options]="idRequired" optionLabel="name" optionValue="value"
-                        [filter]="true" placeholder="Is Required" class="w-full" required
-                        formControlName="isRequired" />
-                </div>
-
-                <div class="mb-4">
-                    <label for="status" class="block font-bold mb-3">Status</label>
-                    <p-select appendTo="body" [options]="status" optionLabel="name" optionValue="id"
-                        placeholder="Status" class="w-full" required formControlName="status" />
-                </div>
-            </ng-container>
-
-            <ng-container formGroupName="metaFields">
-                <div class="mb-4">
-                    <label for="extensions" class="block font-bold mb-3">Extensions</label>
-                    <p-multiselect appendTo="body" [options]="extensions" [filter]="true" optionLabel="name"
-                        optionValue="name" placeholder="Categories" [maxSelectedLabels]="3" class="w-full"
-                        formControlName="extensions" />
-
-                </div>
-            </ng-container>
-
-        </div>
+            </div>
+        </form>
     </ng-template>
 
     <ng-template #footer>
         <p-button label="Cancel" icon="pi pi-times" text (click)="hideDialog()" />
-        <p-button label="Save" icon="pi pi-check" [disabled]="formFieldForm.invalid" (click)="saveFormField()" />
+        <p-button label="Save" icon="pi pi-check" [disabled]="formFieldForm.invalid || submitted"
+            (click)="saveFormField()" />
     </ng-template>
 </p-dialog>
 

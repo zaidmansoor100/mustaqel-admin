@@ -18,6 +18,7 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ToastModule } from 'primeng/toast';
 import { ProgressSpinner } from 'primeng/progressspinner';
+import { TextareaModule } from 'primeng/textarea';
 
 
 @NgModule({
@@ -40,6 +41,7 @@ import { ProgressSpinner } from 'primeng/progressspinner';
         CheckboxModule,
         FileUploadModule,
         ToastModule,
+        TextareaModule,
         ProgressSpinner
 
     ],
@@ -63,7 +65,8 @@ import { ProgressSpinner } from 'primeng/progressspinner';
         CheckboxModule,
         FileUploadModule,
         ToastModule,
-        ProgressSpinner
+        ProgressSpinner,
+        TextareaModule 
     ],
 })
 
