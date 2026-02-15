@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, signal, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, signal, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RequestService } from '@/services/request.service';
 import { NgApexchartsModule } from 'ng-apexcharts';
@@ -24,9 +24,9 @@ import { LayoutService } from '@/layout/service/layout.service';
     template: `
         <div class="">
                 <div class="flex justify-between px-4">
-                    <h3 class="!mb-0 !text-lg !font-semibold">Applications</h3>
+                    <h3 class="!mb-0 !text-lg !font-semibold">Category Stats</h3>
                     <div class="filters">
-                        <p-select [options]="categories" size="small" placeholder="Categories" class="w-full"
+                        <p-select [options]="category" size="small" placeholder="Categories" class="w-full"  (onChange)="selectCat($event.value)"
                             optionLabel="name"> 
                         </p-select>
                     </div>
@@ -42,11 +42,12 @@ import { LayoutService } from '@/layout/service/layout.service';
 export class CategoryStatsWidget implements OnChanges {
     constructor() { }
     @Input() seriesData!: { name: string; value: number; color: string }[];
-
+    @Input() category!: any[]
+    @Output() selectedCategory = new EventEmitter<any>();
+    @Output() stageSelection = new EventEmitter<any>();
 
     series: ApexNonAxisChartSeries = [];
     colors: string[] = [];
-
 
     chart: ApexChart = {
         type: 'donut',
@@ -102,17 +103,17 @@ export class CategoryStatsWidget implements OnChanges {
             const d = this.seriesData[seriesIndex];
 
             return `
-      <div style="display:flex;align-items:center;gap:6px;padding:8px">
-        <span style="
-          width:8px;
-          height:8px;
-          border-radius:50%;
-          background:${d.color};
-        "></span>
-        <span style="font-size:12px">
-          ${d.name}: <b>${d.value}</b>
-        </span>
-      </div>
+                <div style="display:flex;align-items:center;gap:6px;padding:8px">
+                    <span style="
+                    width:8px;
+                    height:8px;
+                    border-radius:50%;
+                    background:${d.color};
+                    "></span>
+                    <span style="font-size:12px">
+                    ${d.name}: <b>${d.value}</b>
+                    </span>
+                </div>
     `;
         }
     };
@@ -121,6 +122,11 @@ export class CategoryStatsWidget implements OnChanges {
             this.series = this.seriesData.map(d => d.value);
             this.colors = this.seriesData.map(d => d.color);
         }
+    }
+
+
+    selectCat(value: string) {
+        this.selectedCategory.emit(value);
     }
 
     categories = [

@@ -47,6 +47,8 @@ export class DashboardComponent implements OnInit {
   }
   value1: Date | undefined;
   categories = []
+  catename: any
+
   seriesData = [
     { name: 'Submission stage', value: 80, color: '#1b9ff0' },
     { name: 'QC stage', value: 60, color: '#c4d8fa' },
@@ -55,6 +57,49 @@ export class DashboardComponent implements OnInit {
     { name: 'Hayya stage', value: 17, color: '#2db2cd' },
     { name: 'Printed stage', value: 41, color: '#1d65d1' }
   ];
+
+  categoryStats = [
+    {
+      çategory: 'Talent',
+      data:
+        [
+          { name: 'QID Approved', value: 13, color: '#1D65D1' },
+          { name: 'QID Printed', value: 25, color: '#A0D467' },
+          { name: 'QID On hold', value: 11, color: '#FFAE4C' },
+          { name: 'QID Rejected', value: 32, color: '#D61D20' },
+        ]
+    },
+    {
+      çategory: 'Investor',
+      data:
+        [
+          { name: 'QID Approved', value: 5, color: '#1D65D1' },
+          { name: 'QID Printed', value: 2, color: '#A0D467' },
+          { name: 'QID On hold', value: 14, color: '#FFAE4C' },
+          { name: 'QID Rejected', value: 8, color: '#D61D20' },
+        ]
+    },
+    {
+      çategory: 'Entrepreneur',
+      data:
+        [
+          { name: 'QID Approved', value: 80, color: '#1D65D1' },
+          { name: 'QID Printed', value: 80, color: '#A0D467' },
+          { name: 'QID On hold', value: 80, color: '#FFAE4C' },
+          { name: 'QID Rejected', value: 80, color: '#D61D20' },
+        ]
+    },
+    {
+      çategory: 'Executive',
+      data:
+        [
+          { name: 'QID Approved', value: 3, color: '#1D65D1' },
+          { name: 'QID Printed', value: 2, color: '#A0D467' },
+          { name: 'QID On hold', value: 4, color: '#FFAE4C' },
+          { name: 'QID Rejected', value: 1, color: '#D61D20' },
+        ]
+    },
+  ]
 
   processData = [
     { name: 'Jusour', value: 2.9, color: '#1D65D1' },
@@ -130,11 +175,9 @@ export class DashboardComponent implements OnInit {
   getCats() {
     this.configuration.getCategories('?page=1').subscribe({
       next: (res: any) => {
-        console.log(res)
         this.categories = res.data
       },
       error: (err) => {
-        console.log(err);
         this.messageService.add({
           severity: 'error',
           summary: 'Error',
@@ -147,7 +190,28 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.getCats();
+    this.getAllCateg()
   }
 
+  getAllCateg() {
+    const combined = this.categoryStats.reduce<any>((acc, curr) => {
+      curr.data.forEach((item) => {
+        if (!acc[item.name]) {
+          acc[item.name] = { ...item };
+        } else {
+          acc[item.name].value += item.value;
+        }
+      });
+
+      return acc;
+    }, {});
+    const result: {} = Object.values(combined);
+    this.catename = result
+  }
+
+  getCatEvent(value: any) {
+    this.catename = null;
+    this.catename = this.categoryStats.find((e: any) => e?.çategory === value?.name)?.data
+  }
 
 }
