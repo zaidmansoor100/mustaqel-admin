@@ -16,6 +16,7 @@ import { BarMultiWidgetComponent } from './components/barMultiWidget';
 import { effect } from '@angular/core';
 import { LayoutService } from '@/layout/service/layout.service';
 import { CategoryStatsWidget } from './components/categoryStatsWidgets';
+import { ApexAxisChartSeries } from 'ng-apexcharts';
 
 
 @Component({
