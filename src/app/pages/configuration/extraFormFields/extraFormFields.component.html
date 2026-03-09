@@ -31,7 +31,7 @@
             </p-iconfield>
         </div>
     </ng-template>
-
+ 
     <ng-template #header>
         <tr>
             <th style="width: 3rem"><p-tableHeaderCheckbox /></th>
@@ -62,14 +62,15 @@
             <td>
                 <div class="flex flex-wrap gap-1">
                     <ng-container *ngIf="field.formMetas && field.formMetas.length > 0; else allCategories">
-                        <p-tag *ngFor="let meta of field.formMetas.slice(0, 3)" severity="info" [value]="meta.key"
-                            styleClass="mr-1 mb-1" [pTooltip]="getCategoryTooltip(meta)" tooltipPosition="top" />
+                        <p-tag *ngFor="let meta of field.formMetas.slice(0, 3)" severity="info"
+                            [value]="getCategoryKey(meta.key)" styleClass="mr-1 mb-1"
+                            [pTooltip]="getCategoryTooltip(meta)" tooltipPosition="top" />
                         <p-tag *ngIf="field.formMetas.length > 3" severity="info"
                             [value]="'+' + (field.formMetas.length - 3)"
                             [pTooltip]="getFullCategoryList(field.formMetas)" tooltipPosition="top" />
                     </ng-container>
                     <ng-template #allCategories>
-                        <span class="text-gray-400">All</span>
+                        <span class="text-gray-400">All Categories</span>
                     </ng-template>
                 </div>
             </td>
@@ -219,31 +220,31 @@
                                         <input id="customGroup" type="text" pInputText [ngModel]="customGroupName"
                                             [ngModelOptions]="{standalone: true}"
                                             (ngModelChange)="onCustomGroupChange($event)"
-                                            placeholder="e.g., 'my-custom-group'" class="flex-grow" />
+                                            placeholder="e.g., 'myCustomGroup'" class="flex-grow" />
                                         <p-button label="Apply" icon="pi pi-check" (click)="applyCustomGroup()"
                                             [disabled]="!customGroupName"></p-button>
                                     </div>
-                                    <small class="text-gray-500">Use kebab-case (lowercase with hyphens)</small>
+                                    <small class="text-gray-500">Use camelCase (lowercase first letter, uppercase for subsequent words)</small>
                                 </div>
                             </div>
 
                             <!-- Field Order -->
                             <div class="field">
-                                <label for="field_order" class="block font-bold mb-2">
+                                <label for="fieldOrder" class="block font-bold mb-2">
                                     Field Order
                                 </label>
-                                <p-inputNumber id="field_order" formControlName="field_order" [min]="0" [max]="999"
+                                <p-inputNumber id="fieldOrder" formControlName="fieldOrder" [min]="0" [max]="999"
                                     class="w-full" />
                                 <small class="text-gray-500">Lower numbers appear first</small>
                             </div>
 
                             <!-- Grid Columns -->
                             <div class="field">
-                                <label for="grid_columns" class="block font-bold mb-2">
+                                <label for="gridVolumns" class="block font-bold mb-2">
                                     Grid Columns <span class="text-red-500">*</span>
                                 </label>
-                                <p-select appendTo="body" id="grid_columns" [options]="gridColumns" optionLabel="label"
-                                    optionValue="value" formControlName="grid_columns" placeholder="Select Columns"
+                                <p-select appendTo="body" id="gridVolumns" [options]="gridColumns" optionLabel="label"
+                                    optionValue="value" formControlName="gridVolumns" placeholder="Select Columns"
                                     class="w-full" />
                             </div>
 
@@ -265,20 +266,20 @@
 
                                     <!-- Repeatable Label -->
                                     <div class="field" *ngIf="formFieldForm.get('formFields.repeatable')?.value">
-                                        <label for="repeatable_label" class="block font-bold mb-2">
+                                        <label for="repeatableLabel" class="block font-bold mb-2">
                                             Add Button Label
                                         </label>
-                                        <input id="repeatable_label" type="text" pInputText
-                                            formControlName="repeatable_label" placeholder="e.g., 'Add Previous Job'"
+                                        <input id="repeatableLabel" type="text" pInputText
+                                            formControlName="repeatableLabel" placeholder="e.g., 'Add Previous Job'"
                                             class="w-full" />
                                     </div>
 
                                     <!-- Max Repeats -->
                                     <div class="field" *ngIf="formFieldForm.get('formFields.repeatable')?.value">
-                                        <label for="repeatable_max" class="block font-bold mb-2">
+                                        <label for="repeatableMax" class="block font-bold mb-2">
                                             Maximum Repeats
                                         </label>
-                                        <p-inputNumber id="repeatable_max" formControlName="repeatable_max" [min]="1"
+                                        <p-inputNumber id="repeatableMax" formControlName="repeatableMax" [min]="1"
                                             [max]="20" class="w-full" />
                                     </div>
                                 </div>
@@ -566,9 +567,9 @@
                                                 Category <span class="text-red-500">*</span>
                                             </label>
                                             <p-select appendTo="body" [id]="'category-'+i" [options]="categories"
-                                                optionLabel="name" optionValue="slug" formControlName="category_slug"
+                                                optionLabel="name" optionValue="slug" formControlName="categorySlug"
                                                 placeholder="Select Category"
-                                                (onChange)="onDropDownChange('category_slug', $event.value, i)"
+                                                (onChange)="onDropDownChange('categorySlug', $event.value, i)"
                                                 class="w-full" />
                                         </div>
 
@@ -579,7 +580,7 @@
                                             </label>
                                             <p-select appendTo="body" [id]="'subCategory-'+i"
                                                 [options]="getSubCategories(i)" optionLabel="name" optionValue="slug"
-                                                formControlName="sub_category_slug" placeholder="Select Sub Category"
+                                                formControlName="subCategorySlug" placeholder="Select Sub Category"
                                                 class="w-full" />
                                         </div>
 
@@ -589,8 +590,8 @@
                                                 Sector
                                             </label>
                                             <p-select appendTo="body" [id]="'sector-'+i" [options]="getSectors(i)"
-                                                optionLabel="name" optionValue="slug" formControlName="sector_slug"
-                                                (onChange)="onDropDownChange('sector_slug', $event.value, i)"
+                                                optionLabel="name" optionValue="slug" formControlName="sectorSlug"
+                                                (onChange)="onDropDownChange('sectorSlug', $event.value, i)"
                                                 placeholder="Select Sector" class="w-full" />
                                         </div>
 
@@ -600,8 +601,8 @@
                                                 Activity
                                             </label>
                                             <p-select appendTo="body" [id]="'activity-'+i" [options]="getActivities(i)"
-                                                optionLabel="name" optionValue="slug" formControlName="activity_slug"
-                                                (onChange)="onDropDownChange('activity_slug', $event.value, i)"
+                                                optionLabel="name" optionValue="slug" formControlName="activitySlug"
+                                                (onChange)="onDropDownChange('activitySlug', $event.value, i)"
                                                 placeholder="Select Activity" class="w-full" />
                                         </div>
 
@@ -612,7 +613,7 @@
                                             </label>
                                             <p-select appendTo="body" [id]="'subActivity-'+i"
                                                 [options]="getSubActivities(i)" optionLabel="name" optionValue="slug"
-                                                formControlName="sub_activity_slug" placeholder="Select Sub Activity"
+                                                formControlName="subActivitySlug" placeholder="Select Sub Activity"
                                                 class="w-full" />
                                         </div>
 
@@ -622,7 +623,7 @@
                                                 Entity
                                             </label>
                                             <p-select appendTo="body" [id]="'entity-'+i" [options]="getEntities(i)"
-                                                optionLabel="name" optionValue="slug" formControlName="entity_slug"
+                                                optionLabel="name" optionValue="slug" formControlName="entitySlug"
                                                 placeholder="Select Entity" class="w-full" />
                                         </div>
 
@@ -632,7 +633,7 @@
                                                 Incubator
                                             </label>
                                             <p-select appendTo="body" [id]="'incubator-'+i" [options]="getIncubators(i)"
-                                                optionLabel="name" optionValue="slug" formControlName="incubator_slug"
+                                                optionLabel="name" optionValue="slug" formControlName="incubatorSlug"
                                                 placeholder="Select Incubator" class="w-full" />
                                         </div>
 
@@ -643,7 +644,7 @@
                                             </label>
                                             <p-select appendTo="body" [id]="'onshore-'+i"
                                                 [options]="onshoreOffShoreType" optionLabel="label" optionValue="name"
-                                                formControlName="onshore_offshore" placeholder="Select Type"
+                                                formControlName="onshoreOffshore" placeholder="Select Type"
                                                 class="w-full" />
                                         </div>
 
@@ -653,7 +654,7 @@
                                                 Is Required?
                                             </label>
                                             <p-select appendTo="body" [id]="'isRequired-'+i" [options]="idRequired"
-                                                optionLabel="name" optionValue="value" formControlName="is_required"
+                                                optionLabel="name" optionValue="value" formControlName="isRequired"
                                                 placeholder="Select" class="w-full" />
                                         </div>
                                     </div>
@@ -691,7 +692,7 @@
                                                 Field <span class="text-red-500">*</span>
                                             </label>
                                             <input [id]="'field-'+i" type="text" pInputText formControlName="field"
-                                                placeholder="field_slug" class="w-full" />
+                                                placeholder="fieldSlug" class="w-full" />
                                         </div>
 
                                         <!-- Operator -->
@@ -746,4 +747,3 @@
         </div>
     </ng-template>
 </p-dialog>
-

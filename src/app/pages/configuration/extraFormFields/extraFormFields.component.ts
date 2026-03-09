@@ -39,7 +39,7 @@ import { CustomValidators } from '@/common/validators/custom-validators';
         CommonModule,
         FormsModule,
         ReactiveFormsModule,
-        
+
         // PrimeNG Modules
         TableModule,
         ButtonModule,
@@ -73,7 +73,7 @@ export class ExtraFormFieldsComponent implements OnInit {
     formFieldDialog: boolean = false;
     submitted: boolean = false;
     selectedFormFields: any[] = [];
-    
+
     // Form
     formFieldForm: FormGroup;
     formField: any = {};
@@ -103,33 +103,34 @@ export class ExtraFormFieldsComponent implements OnInit {
     ];
 
     sections = [
-        { value: 'personal-info', label: 'Personal Information' },
-        { value: 'employment-education', label: 'Employment & Education' },
-        { value: 'residency-travel', label: 'Residency, Travel & Family' },
+        { value: 'personalInfo', label: 'Personal Information' },
+        { value: 'employmentEducation', label: 'Employment & Education' },
+        { value: 'residencyTravel', label: 'Residency, Travel & Family' },
         { value: 'documents', label: 'Document Upload' }
     ];
 
     groupOptions = [
         // Personal Information Section Groups
-        { value: 'identification-data', label: 'Identification Data', section: 'personal-info' },
-        { value: 'applicant-info', label: 'Applicant Information', section: 'personal-info' },
-        { value: 'contact-info', label: 'Contact Information', section: 'personal-info' },
-        { value: 'passport-details', label: 'Passport Details', section: 'personal-info' },
+        { value: 'applicantInfo', label: 'Applicant Information', section: 'personalInfo' },
+        { value: 'contactInfo', label: 'Contact Information', section: 'personalInfo' },
+        { value: 'passportDetails', label: 'Passport Details', section: 'personalInfo' },
 
         // Employment & Education Section Groups
-        { value: 'employment-details', label: 'Employment Details', section: 'employment-education' },
-        { value: 'previous-jobs', label: 'Previous Jobs', section: 'employment-education' },
-        { value: 'education', label: 'Education', section: 'employment-education' },
+        { value: 'employmentDetails', label: 'Employment Details', section: 'employmentEducation' },
+        { value: 'previousJobs', label: 'Previous Jobs', section: 'employmentEducation' },
+        { value: 'education', label: 'Education', section: 'employmentEducation' },
 
         // Residency, Travel & Family Section Groups
-        { value: 'residences', label: 'Residences', section: 'residency-travel' },
-        { value: 'other-nationalities', label: 'Other Nationalities', section: 'residency-travel' },
-        { value: 'countries-visited', label: 'Countries Visited', section: 'residency-travel' },
-        { value: 'family-members', label: 'Family Members', section: 'residency-travel' },
+        { value: 'residences', label: 'Residences', section: 'residencyTravel' },
+        { value: 'otherNationalities', label: 'Other Nationalities', section: 'residencyTravel' },
+        { value: 'countriesVisited', label: 'Countries Visited', section: 'residencyTravel' },
+        { value: 'familyMembers', label: 'Family Members', section: 'residencyTravel' },
 
         // Documents Section Groups
-        { value: 'required-documents', label: 'Required Documents', section: 'documents' },
-
+        { value: 'requiredDocuments', label: 'Required Documents', section: 'documents' },
+        { value: 'residencyDocuments', label: 'Residency Documents', section: 'documents' }, // ADD THIS
+        { value: 'investmentDocuments', label: 'Investment Documents', section: 'documents' }, // ADD THIS
+        { value: 'ictMinistryDocuments', label: 'ICT Ministry Documents', section: 'documents' }, // ADD THIS
         // General/Custom Groups
         { value: 'general', label: 'General', section: 'general' },
         { value: 'custom', label: 'Custom (Enter below)', section: 'custom' }
@@ -155,11 +156,7 @@ export class ExtraFormFieldsComponent implements OnInit {
         { value: false, name: 'No' }
     ];
 
-    extensions = [
-        { name: 'png' }, { name: 'jpg' }, { name: 'jpeg' }, { name: 'pdf' },
-        { name: 'docx' }, { name: 'doc' }, { name: 'xlsx' }, { name: 'xlsb' },
-        { name: 'xls' }, { name: 'xltx' }, { name: 'xlsm' }, { name: 'csv' }
-    ];
+    extensions = [{ name: 'png' }, { name: 'jpg' }, { name: 'jpeg' }, { name: 'pdf' }, { name: 'docx' }, { name: 'doc' }, { name: 'xlsx' }, { name: 'xlsb' }, { name: 'xls' }, { name: 'xltx' }, { name: 'xlsm' }, { name: 'csv' }];
 
     operators = [
         { value: 'equals', label: 'Equals' },
@@ -227,7 +224,7 @@ export class ExtraFormFieldsComponent implements OnInit {
         if (!resolverData?.length) return;
 
         const [fieldsData, categoriesData, groupsData] = resolverData;
-        
+
         this.formFields = fieldsData?.data?.data || fieldsData?.data || [];
         this.categories = categoriesData?.data || [];
         this.groups = groupsData?.data || [];
@@ -241,13 +238,13 @@ export class ExtraFormFieldsComponent implements OnInit {
                 nameEn: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
                 nameAr: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
                 type: ['', [Validators.required]],
-                section: ['personal-info', [Validators.required]],
+                section: ['personalInfo', [Validators.required]],
                 group: ['general', [Validators.required]],
-                field_order: [0, [Validators.min(0)]],
-                grid_columns: [4, [Validators.required, Validators.min(1), Validators.max(12)]],
+                fieldOrder: [0, [Validators.min(0)]],
+                gridColumns: [4, [Validators.required, Validators.min(1), Validators.max(12)]],
                 repeatable: [false],
-                repeatable_label: [''],
-                repeatable_max: [null],
+                repeatableLabel: [''],
+                repeatableMax: [null],
                 status: [1, [Validators.required]]
             }),
             metaFields: this.fb.group({
@@ -280,15 +277,15 @@ export class ExtraFormFieldsComponent implements OnInit {
 
     createCategoryRuleGroup(rule?: any): FormGroup {
         return this.fb.group({
-            category_slug: [rule?.category_slug || '', [Validators.required]],
-            sub_category_slug: [rule?.sub_category_slug || ''],
-            sector_slug: [rule?.sector_slug || ''],
-            activity_slug: [rule?.activity_slug || ''],
-            sub_activity_slug: [rule?.sub_activity_slug || ''],
-            entity_slug: [rule?.entity_slug || ''],
-            incubator_slug: [rule?.incubator_slug || ''],
-            onshore_offshore: [rule?.onshore_offshore || 'both', [Validators.required]],
-            is_required: [rule?.is_required ?? true, [Validators.required]]
+            categorySlug: [rule?.categorySlug || '', [Validators.required]],
+            subCategorySlug: [rule?.subCategorySlug || ''],
+            sectorSlug: [rule?.sectorSlug || ''],
+            activitySlug: [rule?.activitySlug || ''],
+            subActivitySlug: [rule?.subActivitySlug || ''],
+            entitySlug: [rule?.entitySlug || ''],
+            incubatorSlug: [rule?.incubatorSlug || ''],
+            onshoreOffshore: [rule?.onshoreOffshore || 'both', [Validators.required]],
+            isRequired: [rule?.isRequired ?? true, [Validators.required]]
         });
     }
 
@@ -317,13 +314,15 @@ export class ExtraFormFieldsComponent implements OnInit {
         const selectedSection = this.formFieldForm?.get('formFields.section')?.value;
         if (!selectedSection) return this.groupOptions;
 
-        return this.groupOptions.filter(g => 
-            g.section === selectedSection || g.section === 'general' || g.value === 'custom'
-        );
+        return this.groupOptions.filter((g) => g.section === selectedSection || g.section === 'general' || g.value === 'custom');
     }
 
     getCategoryKey(slug: string): string {
-        const category = this.categories.find(cat => cat.slug === slug);
+        // If it's 'all', show 'All'
+        if (slug === 'all') return 'All';
+
+        // Try to find the category name
+        const category = this.categories.find((cat) => cat.slug === slug);
         return category ? category.name : slug;
     }
 
@@ -369,32 +368,34 @@ export class ExtraFormFieldsComponent implements OnInit {
 
     getSectionLabel(section: string): string {
         const sections: Record<string, string> = {
-            'personal-info': 'Personal Info',
-            'employment-education': 'Employment & Education',
-            'residency-travel': 'Residency & Travel',
-            'documents': 'Documents'
+            'personalInfo': 'Personal Info',
+            'employmentEducation': 'Employment & Education',
+            'residencyTravel': 'Residency & Travel',
+            documents: 'Documents'
         };
         return sections[section] || section;
     }
 
     getGroupLabel(group: string): string {
         const groups: Record<string, string> = {
-            'identification-data': 'Identification',
-            'applicant-info': 'Applicant',
-            'contact-info': 'Contact',
-            'passport-details': 'Passport',
-            'employment-details': 'Employment',
-            'previous-jobs': 'Previous Jobs',
-            'education': 'Education',
-            'residences': 'Residences',
-            'other-nationalities': 'Other Nationalities',
-            'countries-visited': 'Visited Countries',
-            'family-members': 'Family',
-            'required-documents': 'Documents'
+            'applicantInfo': 'Applicant',
+            'contactInfo': 'Contact',
+            'passportDetails': 'Passport',
+            'employmentDetails': 'Employment',
+            'previousJobs': 'Previous Jobs',
+            education: 'Education',
+            residences: 'Residences',
+            'otherNationalities': 'Other Nationalities',
+            'countriesVisited': 'Visited Countries',
+            'familyMembers': 'Family',
+            'residencyDetails': 'Residency Details',
+            'requiredDocuments': 'Required Documents',
+            'residencyDocuments': 'Residency Documents',
+            'investmentDocuments': 'Investment Documents',
+            'ictMinistryDocuments': 'ICT Documents'
         };
         return groups[group] || group;
     }
-
     getCategoryTooltip(meta: any): string {
         if (!meta) return '';
         return `Category: ${meta.key}\nOnshore/Offshore: ${meta.onshoreOffShore}\nRequired: ${meta.isRequired ? 'Yes' : 'No'}`;
@@ -402,7 +403,7 @@ export class ExtraFormFieldsComponent implements OnInit {
 
     getFullCategoryList(metas: any[]): string {
         if (!metas?.length) return '';
-        return metas.map(m => `${m.key} (${m.onshoreOffShore})`).join(', ');
+        return metas.map((m) => `${m.key} (${m.onshoreOffShore})`).join(', ');
     }
 
     // ==================== Field Type Change Handler ====================
@@ -419,11 +420,9 @@ export class ExtraFormFieldsComponent implements OnInit {
         }
 
         const metaFields = this.formFieldForm.get('metaFields') as FormGroup;
-        
+
         // Reset validators
-        ['extensions', 'options', 'fields', 'maxSize', 'multiple', 'maxFiles', 'rows'].forEach(
-            field => metaFields.get(field)?.clearValidators()
-        );
+        ['extensions', 'options', 'fields', 'maxSize', 'multiple', 'maxFiles', 'rows'].forEach((field) => metaFields.get(field)?.clearValidators());
 
         // Set validators based on type
         switch (type) {
@@ -445,9 +444,7 @@ export class ExtraFormFieldsComponent implements OnInit {
         }
 
         // Update validity
-        ['extensions', 'options', 'fields', 'maxSize', 'multiple', 'maxFiles', 'rows'].forEach(
-            field => metaFields.get(field)?.updateValueAndValidity()
-        );
+        ['extensions', 'options', 'fields', 'maxSize', 'multiple', 'maxFiles', 'rows'].forEach((field) => metaFields.get(field)?.updateValueAndValidity());
     }
 
     // ==================== Options Management ====================
@@ -474,7 +471,7 @@ export class ExtraFormFieldsComponent implements OnInit {
             nameEn: '',
             nameAr: '',
             type: 'text',
-            grid_columns: 4,
+            gridColumns: 4,
             required: false,
             options: []
         });
@@ -522,10 +519,7 @@ export class ExtraFormFieldsComponent implements OnInit {
 
     removeCategoryRule(index: number) {
         this.categoryRulesFormArray.removeAt(index);
-        [this.subCategoriesMap, this.sectorsMap, this.activitiesMap, 
-         this.subActivitiesMap, this.entitiesMap, this.incubatorsMap].forEach(
-            map => map.delete(index)
-        );
+        [this.subCategoriesMap, this.sectorsMap, this.activitiesMap, this.subActivitiesMap, this.entitiesMap, this.incubatorsMap].forEach((map) => map.delete(index));
         this.reindexMaps();
     }
 
@@ -543,7 +537,7 @@ export class ExtraFormFieldsComponent implements OnInit {
 
     onSectionChange(section: string) {
         const currentGroup = this.formFieldForm?.get('formFields.group')?.value;
-        const validGroups = this.getFilteredGroups().map(g => g.value);
+        const validGroups = this.getFilteredGroups().map((g) => g.value);
 
         if (currentGroup && !validGroups.includes(currentGroup) && currentGroup !== 'custom') {
             this.formFieldForm?.get('formFields.group')?.setValue('');
@@ -560,17 +554,17 @@ export class ExtraFormFieldsComponent implements OnInit {
         const rule = this.categoryRulesFormArray.at(index);
 
         switch (type) {
-            case 'category_slug':
+            case 'categorySlug':
                 if (value) await this.loadSubCategoriesAndSectors(value, index);
-                rule.patchValue({ sector_slug: '', activity_slug: '', sub_activity_slug: '', entity_slug: '', incubator_slug: '' });
+                rule.patchValue({ sectorSlug: '', activitySlug: '', subActivitySlug: '', entitySlug: '', incubatorSlug: '' });
                 break;
-            case 'sector_slug':
+            case 'sectorSlug':
                 if (value) await this.loadActivities(value, index);
-                rule.patchValue({ activity_slug: '', sub_activity_slug: '', entity_slug: '' });
+                rule.patchValue({ activitySlug: '', subActivitySlug: '', entitySlug: '' });
                 break;
-            case 'activity_slug':
+            case 'activitySlug':
                 if (value) await this.loadSubActivitiesAndEntities(value, index);
-                rule.patchValue({ sub_activity_slug: '', entity_slug: '' });
+                rule.patchValue({ subActivitySlug: '', entitySlug: '' });
                 break;
         }
     }
@@ -655,11 +649,8 @@ export class ExtraFormFieldsComponent implements OnInit {
         this.groupFields = [];
         this.currentFieldType = '';
         this.customGroupName = '';
-        
-        [this.subCategoriesMap, this.sectorsMap, this.activitiesMap,
-         this.subActivitiesMap, this.entitiesMap, this.incubatorsMap].forEach(
-            map => map.clear()
-        );
+
+        [this.subCategoriesMap, this.sectorsMap, this.activitiesMap, this.subActivitiesMap, this.entitiesMap, this.incubatorsMap].forEach((map) => map.clear());
     }
 
     private prepareFormValues(formField: any) {
@@ -668,13 +659,13 @@ export class ExtraFormFieldsComponent implements OnInit {
                 nameEn: formField.nameEn || '',
                 nameAr: formField.nameAr || '',
                 type: formField.type || '',
-                section: formField.section || 'personal-info',
+                section: formField.section || 'personalInfo',
                 group: formField.group || 'general',
-                field_order: formField.field_order || 0,
-                grid_columns: formField.grid_columns || 4,
+                fieldOrder: formField.fieldOrder || 0,
+                gridColumns: formField.gridColumns || 4,
                 repeatable: formField.repeatable === 1 || formField.repeatable === true,
-                repeatable_label: formField.repeatable_label || '',
-                repeatable_max: formField.repeatable_max || null,
+                repeatableLabel: formField.repeatableLabel || '',
+                repeatableMax: formField.repeatableMax || null,
                 status: formField.status ?? 1
             },
             metaFields: {
@@ -713,20 +704,16 @@ export class ExtraFormFieldsComponent implements OnInit {
             formField.formMetas.forEach((meta: any) => {
                 const valueObj = meta.value || {};
                 const rule = {
-                    category_slug: meta.key || '',
-                    sub_category_slug: valueObj.sub_category || valueObj.subCategorySlug || '',
-                    sector_slug: valueObj.sector || valueObj.sectorSlug || '',
-                    activity_slug: valueObj.activity || valueObj.activitySlug || '',
-                    sub_activity_slug: valueObj.sub_activity || valueObj.subActivitySlug || '',
-                    entity_slug: valueObj.entity || valueObj.entitySlug || '',
-                    incubator_slug: valueObj.incubator || valueObj.incubatorSlug || '',
-                    onshore_offshore: meta.onshoreOffShore || 'both',
-                    is_required: meta.isRequired === 1 || meta.isRequired === true
+                    categorySlug: meta.key || '',
+                    subCategorySlug: valueObj.subCategory || valueObj.subCategorySlug || '',
+                    sectorSlug: valueObj.sector || valueObj.sectorSlug || '',
+                    activitySlug: valueObj.activity || valueObj.activitySlug || '',
+                    subActivitySlug: valueObj.subActivity || valueObj.subActivitySlug || '',
+                    entitySlug: valueObj.entity || valueObj.entitySlug || '',
+                    incubatorSlug: valueObj.incubator || valueObj.incubatorSlug || '',
+                    onshoreOffshore: meta.onshoreOffShore || 'both',
+                    isRequired: meta.isRequired === 1 || meta.isRequired === true
                 };
-                categoryRulesArray.push(this.createCategoryRuleGroup(rule));
-            });
-        } else if (formField.category_rules?.length) {
-            formField.category_rules.forEach((rule: any) => {
                 categoryRulesArray.push(this.createCategoryRuleGroup(rule));
             });
         }
@@ -755,10 +742,12 @@ export class ExtraFormFieldsComponent implements OnInit {
                 if (Array.isArray(value)) {
                     value = value.join(',');
                 }
-                conditionsArray.push(this.createConditionGroup({
-                    ...cond,
-                    value: String(value)
-                }));
+                conditionsArray.push(
+                    this.createConditionGroup({
+                        ...cond,
+                        value: String(value)
+                    })
+                );
             });
         }
     }
@@ -777,7 +766,7 @@ export class ExtraFormFieldsComponent implements OnInit {
 
     private handleCustomGroup(formField: any) {
         const groupValue = formField?.group;
-        const predefinedGroups = this.groupOptions.map(g => g.value);
+        const predefinedGroups = this.groupOptions.map((g) => g.value);
 
         if (groupValue && !predefinedGroups.includes(groupValue) && groupValue !== 'custom') {
             this.customGroupName = groupValue;
@@ -803,19 +792,19 @@ export class ExtraFormFieldsComponent implements OnInit {
             const res = await this.configurationService.getFormFieldId(formField.id).toPromise();
             this.formField = res.data || res;
             this.formBuild(this.formField);
-            
+
             // Load category rule dependencies
-            if (this.formField.category_rules?.length) {
-                for (let i = 0; i < this.formField.category_rules.length; i++) {
-                    const rule = this.formField.category_rules[i];
-                    if (rule.category_slug) {
-                        await this.loadSubCategoriesAndSectors(rule.category_slug, i);
+            if (this.formField.categoryRules?.length) {
+                for (let i = 0; i < this.formField.categoryRules.length; i++) {
+                    const rule = this.formField.categoryRules[i];
+                    if (rule.categorySlug) {
+                        await this.loadSubCategoriesAndSectors(rule.categorySlug, i);
                     }
-                    if (rule.sector_slug) {
-                        await this.loadActivities(rule.sector_slug, i);
+                    if (rule.sectorSlug) {
+                        await this.loadActivities(rule.sectorSlug, i);
                     }
-                    if (rule.activity_slug) {
-                        await this.loadSubActivitiesAndEntities(rule.activity_slug, i);
+                    if (rule.activitySlug) {
+                        await this.loadSubActivitiesAndEntities(rule.activitySlug, i);
                     }
                 }
             }
@@ -834,17 +823,15 @@ export class ExtraFormFieldsComponent implements OnInit {
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                const deleteRequests = this.selectedFormFields.map(f => 
-                    this.configurationService.deleteFormField(f.id).toPromise()
-                );
+                const deleteRequests = this.selectedFormFields.map((f) => this.configurationService.deleteFormField(f.id).toPromise());
 
                 Promise.all(deleteRequests)
                     .then(() => {
-                        this.formFields = this.formFields.filter(f => !this.selectedFormFields.includes(f));
+                        this.formFields = this.formFields.filter((f) => !this.selectedFormFields.includes(f));
                         this.selectedFormFields = [];
                         this.showSuccess('Fields Deleted');
                     })
-                    .catch(error => {
+                    .catch((error) => {
                         console.error(error);
                         this.showError('Some deletes failed');
                     });
@@ -860,7 +847,7 @@ export class ExtraFormFieldsComponent implements OnInit {
             accept: () => {
                 this.configurationService.deleteFormField(formField.id).subscribe({
                     next: () => {
-                        this.formFields = this.formFields.filter(f => f.id !== formField.id);
+                        this.formFields = this.formFields.filter((f) => f.id !== formField.id);
                         this.showSuccess('Field Deleted');
                     },
                     error: (error) => {
@@ -883,14 +870,12 @@ export class ExtraFormFieldsComponent implements OnInit {
 
         const apiData = this.prepareApiData();
 
-        const request = this.formField.id
-            ? this.configurationService.updateFormField(this.formField.id, apiData)
-            : this.configurationService.createFormField(apiData);
+        const request = this.formField.id ? this.configurationService.updateFormField(this.formField.id, apiData) : this.configurationService.createFormField(apiData);
 
         request.subscribe({
             next: (res) => {
                 if (this.formField.id) {
-                    const index = this.formFields.findIndex(f => f.id === this.formField.id);
+                    const index = this.formFields.findIndex((f) => f.id === this.formField.id);
                     this.formFields[index] = res.data;
                     this.showSuccess('Field Updated Successfully');
                 } else {
@@ -916,11 +901,11 @@ export class ExtraFormFieldsComponent implements OnInit {
                 type: formValue.formFields.type,
                 section: formValue.formFields.section,
                 group: formValue.formFields.group === 'custom' ? this.customGroupName : formValue.formFields.group,
-                field_order: formValue.formFields.field_order,
-                grid_columns: formValue.formFields.grid_columns,
+                fieldOrder: formValue.formFields.fieldOrder,
+                gridColumns: formValue.formFields.gridColumns,
                 repeatable: formValue.formFields.repeatable,
-                repeatable_label: formValue.formFields.repeatable ? formValue.formFields.repeatable_label : null,
-                repeatable_max: formValue.formFields.repeatable ? formValue.formFields.repeatable_max : null,
+                repeatableLabel: formValue.formFields.repeatable ? formValue.formFields.repeatableLabel : null,
+                repeatableMax: formValue.formFields.repeatable ? formValue.formFields.repeatableMax : null,
                 status: formValue.formFields.status
             },
             metaFields: {
@@ -932,7 +917,7 @@ export class ExtraFormFieldsComponent implements OnInit {
                 tooltipAr: formValue.metaFields.tooltipAr,
                 validations: formValue.metaFields.validations
             },
-            categoryRules: formValue.categoryRules,
+            categoryRules: formValue.categoryRules, // This is perfect - separate from metaFields
             conditions: formValue.conditions
         };
 
@@ -947,7 +932,7 @@ export class ExtraFormFieldsComponent implements OnInit {
             case 'select':
             case 'radio':
             case 'checkbox':
-                apiData.metaFields.options = this.dropdownOptions.filter(opt => opt.labelEn && opt.labelAr && opt.value);
+                apiData.metaFields.options = this.dropdownOptions.filter((opt) => opt.labelEn && opt.labelAr && opt.value);
                 break;
             case 'group':
                 apiData.metaFields.fields = this.groupFields;
@@ -972,17 +957,14 @@ export class ExtraFormFieldsComponent implements OnInit {
         this.groupFields = [];
         this.currentFieldType = '';
         this.customGroupName = '';
-        
-        [this.subCategoriesMap, this.sectorsMap, this.activitiesMap,
-         this.subActivitiesMap, this.entitiesMap, this.incubatorsMap].forEach(
-            map => map.clear()
-        );
+
+        [this.subCategoriesMap, this.sectorsMap, this.activitiesMap, this.subActivitiesMap, this.entitiesMap, this.incubatorsMap].forEach((map) => map.clear());
     }
 
     // ==================== Table Methods ====================
 
     exportCSV() {
-        const formatted = this.formFields.map(f => ({
+        const formatted = this.formFields.map((f) => ({
             ...f,
             status: f.status === 1 ? 'Active' : 'Inactive'
         }));
@@ -1006,7 +988,7 @@ export class ExtraFormFieldsComponent implements OnInit {
             { field: 'status', header: 'Status' }
         ];
 
-        this.exportColumns = this.cols.map(col => ({
+        this.exportColumns = this.cols.map((col) => ({
             title: col.header,
             dataKey: col.field
         }));
@@ -1050,14 +1032,7 @@ export class ExtraFormFieldsComponent implements OnInit {
     }
 
     private reindexMaps() {
-        const newMaps = [
-            new Map<number, any[]>(),
-            new Map<number, any[]>(),
-            new Map<number, any[]>(),
-            new Map<number, any[]>(),
-            new Map<number, any[]>(),
-            new Map<number, any[]>()
-        ];
+        const newMaps = [new Map<number, any[]>(), new Map<number, any[]>(), new Map<number, any[]>(), new Map<number, any[]>(), new Map<number, any[]>(), new Map<number, any[]>()];
 
         this.categoryRulesFormArray.controls.forEach((_, index) => {
             newMaps[0].set(index, this.subCategoriesMap.get(index) || []);
@@ -1068,7 +1043,6 @@ export class ExtraFormFieldsComponent implements OnInit {
             newMaps[5].set(index, this.incubatorsMap.get(index) || []);
         });
 
-        [this.subCategoriesMap, this.sectorsMap, this.activitiesMap,
-         this.subActivitiesMap, this.entitiesMap, this.incubatorsMap] = newMaps;
+        [this.subCategoriesMap, this.sectorsMap, this.activitiesMap, this.subActivitiesMap, this.entitiesMap, this.incubatorsMap] = newMaps;
     }
 }
