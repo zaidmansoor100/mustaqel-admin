@@ -1,16 +1,24 @@
+<!-- Toolbar with permission-based buttons -->
 <p-toolbar styleClass="mb-6">
     <p-toast></p-toast>
     <ng-template #start>
-        <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="openNew()" />
-        <p-button severity="secondary" label="Delete" icon="pi pi-trash" outlined (onClick)="deleteSelectedRoles()"
-            [disabled]="!selectedRoles || !selectedRoles.length" />
+        <!-- New button - only visible if user has CREATE permission -->
+        <p-button *appPermission="Permission.CREATE_ROLES" label="New" icon="pi pi-plus" severity="secondary"
+            class="mr-2" (onClick)="openNew()" />
+
+        <!-- Delete button - only visible if user has DELETE permission -->
+        <p-button *appPermission="Permission.DELETE_ROLES" severity="secondary" label="Delete" icon="pi pi-trash"
+            outlined (onClick)="deleteSelectedRoles()" [disabled]="!selectedRoles || !selectedRoles.length" />
     </ng-template>
 
     <ng-template #end>
-        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+        <!-- Export button - only visible if user has EXPORT permission -->
+        <p-button *appPermission="Permission.EXPORT_DATA_TALENT" label="Export" icon="pi pi-upload" severity="secondary"
+            (onClick)="exportCSV()" />
     </ng-template>
 </p-toolbar>
 
+<!-- Roles Table -->
 <p-table #dt [value]="roles" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
     (onLazyLoad)="loadRoles($event)" [globalFilterFields]="['name', 'nameAr', 'status']"
     [tableStyle]="{ 'min-width': '75rem' }" [(selection)]="selectedRoles" [rowHover]="true" dataKey="id"
@@ -29,60 +37,96 @@
 
     <ng-template #header>
         <tr>
-            <th><p-tableHeaderCheckbox /></th>
+            <!-- Checkbox column - only visible if user has DELETE permission -->
+            <th *appPermission="Permission.DELETE_ROLES">
+                <p-tableHeaderCheckbox />
+            </th>
             <th *ngFor="let col of cols" [pSortableColumn]="col.field">{{ col.header }}</th>
-            <th></th>
+            <!-- Actions column - only visible if user has EDIT or DELETE permission -->
+            <th *appPermission="[Permission.EDIT_ROLES, Permission.DELETE_ROLES]" appPermissionMode="any">Actions</th>
         </tr>
     </ng-template>
 
-    <ng-template #body let-user>
+    <ng-template #body let-role>
         <tr>
-            <td><p-tableCheckbox [value]="user" /></td>
-            <td>{{ user.id }}</td>
-            <td>{{ user.name }}</td>
-            <td>{{ user.guard_name }}</td>
-            <td>{{ user.type }}</td>
-            <td>{{ user.approval_levels }}</td>
-            <td>{{ user.created_at | date:'short' }}</td>
-            <td>{{ user.updated_at | date:'short' }}</td>
-            <td>
-                <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true"
-                    (click)="editRole(user)" />
-                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
-                    (click)="deleteRole(user)" />
+            <!-- Checkbox - only visible if user has DELETE permission -->
+            <td *appPermission="Permission.DELETE_ROLES">
+                <p-tableCheckbox [value]="role" />
+            </td>
+            <td>{{ role.id }}</td>
+            <td>{{ role.name }}</td>
+            <td>{{ role.guard_name }}</td>
+            <td>{{ role.type }}</td>
+            <td>{{ role.approval_levels }}</td>
+            <td>{{ role.created_at | date:'short' }}</td>
+            <td>{{ role.updated_at | date:'short' }}</td>
+            <!-- Action buttons - only visible based on permissions -->
+            <td *appPermission="[Permission.EDIT_ROLES, Permission.DELETE_ROLES]" appPermissionMode="any">
+                <!-- Edit button - only visible if user has EDIT permission -->
+                <p-button *appPermission="Permission.EDIT_ROLES" icon="pi pi-pencil" class="mr-2" [rounded]="true"
+                    [outlined]="true" (click)="editRole(role)" />
+
+                <!-- Delete button - only visible if user has DELETE permission -->
+                <p-button *appPermission="Permission.DELETE_ROLES" icon="pi pi-trash" severity="danger" [rounded]="true"
+                    [outlined]="true" (click)="deleteRole(role)" />
+            </td>
+        </tr>
+    </ng-template>
+
+    <!-- Empty state message -->
+    <ng-template #emptymessage>
+        <tr>
+            <td [attr.colspan]="(canDelete$ | async) ? 9 : 8" class="text-center">
+                No roles found.
             </td>
         </tr>
     </ng-template>
 </p-table>
 
-<p-dialog [(visible)]="roleDialog" [style]="{ width: '900px' }" header="Role Details" [modal]="true">
+<!-- Role Dialog -->
+<p-dialog [(visible)]="roleDialog" [style]="{ width: '900px' }" header="Role Details" [modal]="true" [draggable]="false"
+    [resizable]="false">
+
     <ng-template #content>
         <div class="grid grid-cols-2 gap-6" [formGroup]="roleForm">
             <div class="mb-4">
-                <label for="name" class="block font-bold mb-3">Name (English)</label>
+                <label for="name" class="block font-bold mb-3">Name (English) <span
+                        class="text-red-500">*</span></label>
                 <input class="w-full" type="text" pInputText id="name" required autofocus formControlName="name" />
                 <small class="text-red-500" *ngIf="roleForm.get('name')?.invalid && roleForm.get('name')?.touched">
-                    Name is required (3-50 characters, letters only)
+                    <span *ngIf="roleForm.get('name')?.hasError('required')">Name is required</span>
+                    <span *ngIf="roleForm.get('name')?.hasError('minlength')">Name must be at least 3 characters</span>
+                    <span *ngIf="roleForm.get('name')?.hasError('maxlength')">Name cannot exceed 50 characters</span>
+                    <span *ngIf="roleForm.get('name')?.hasError('alpha')">Only letters are allowed</span>
                 </small>
             </div>
 
             <div class="mb-4">
-                <label for="type" class="block font-bold mb-3">Role Type</label>
+                <label for="type" class="block font-bold mb-3">Role Type <span class="text-red-500">*</span></label>
                 <p-select appendTo="body" [options]="roleTypes" optionLabel="name" optionValue="value"
                     placeholder="Select Role Type" class="w-full" required formControlName="type" />
+                <small class="text-red-500" *ngIf="roleForm.get('type')?.invalid && roleForm.get('type')?.touched">
+                    Role type is required
+                </small>
             </div>
 
             <div class="mb-4">
-                <label for="approvalLevels" class="block font-bold mb-3">Approval Levels</label>
+                <label for="approvalLevels" class="block font-bold mb-3">Approval Levels <span
+                        class="text-red-500">*</span></label>
                 <p-inputNumber class="w-full" id="approvalLevels" formControlName="approvalLevels" [min]="1" [max]="10"
-                    [showButtons]="true" mode="decimal"></p-inputNumber>
+                    [showButtons]="true" mode="decimal">
+                </p-inputNumber>
+                <small class="text-red-500"
+                    *ngIf="roleForm.get('approvalLevels')?.invalid && roleForm.get('approvalLevels')?.touched">
+                    Approval levels must be between 1 and 10
+                </small>
             </div>
 
             <div class="mb-4 col-span-2">
                 <div class="flex items-center justify-between mb-3">
                     <label class="block font-bold">Permissions</label>
-                    <span class="text-sm text-muted">{{ roleForm.get('permissions')?.value?.length || 0 }} / {{
-                        getTotalPermissionsCount() }} selected</span>
+                    <span class="text-sm text-muted">{{ roleForm.get('permissions')?.value?.length || 0 }} /
+                        {{ getTotalPermissionsCount() }} selected</span>
                 </div>
 
                 <div class="border rounded p-3 max-h-96 overflow-y-auto">
@@ -116,8 +160,10 @@
                         </div>
                     </div>
                 </div>
-                <small class="text-muted mt-2 block">Select the permissions you want to assign to this role. Use group
-                    checkboxes to select all permissions in a category.</small>
+                <small class="text-muted mt-2 block">
+                    Select the permissions you want to assign to this role. Use group checkboxes to select all
+                    permissions in a category.
+                </small>
             </div>
         </div>
     </ng-template>

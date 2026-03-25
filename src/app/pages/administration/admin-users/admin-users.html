@@ -1,20 +1,54 @@
+<!-- Toolbar with permission-based buttons -->
 <p-toolbar styleClass="mb-6">
     <p-toast></p-toast>
     <ng-template #start>
-        <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="openNew()" />
-        <p-button severity="secondary" label="Delete" icon="pi pi-trash" outlined (onClick)="deleteSelectedUsers()"
+        <!-- New button - only visible if user has CREATE permission -->
+        <p-button 
+            *appPermission="Permission.CREATE_ADMIN_USERS"
+            label="New" 
+            icon="pi pi-plus" 
+            severity="secondary" 
+            class="mr-2" 
+            (onClick)="openNew()" />
+        
+        <!-- Delete button - only visible if user has DELETE permission -->
+        <p-button 
+            *appPermission="Permission.DELETE_ADMIN_USERS"
+            severity="secondary" 
+            label="Delete" 
+            icon="pi pi-trash" 
+            outlined 
+            (onClick)="deleteSelectedUsers()"
             [disabled]="!selectedUsers || !selectedUsers.length" />
     </ng-template>
 
     <ng-template #end>
-        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+        <!-- Export button - only visible if user has EXPORT permission -->
+        <p-button 
+            *appPermission="Permission.EXPORT_DATA_TALENT"
+            label="Export" 
+            icon="pi pi-upload" 
+            severity="secondary" 
+            (onClick)="exportCSV()" />
     </ng-template>
 </p-toolbar>
 
-<p-table #dt [value]="users" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
-    (onLazyLoad)="loadUsers($event)" [globalFilterFields]="['name', 'nameAr', 'email', 'status']"
-    [tableStyle]="{ 'min-width': '75rem' }" [(selection)]="selectedUsers" [rowHover]="true" dataKey="id"
-    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} users" [showCurrentPageReport]="true"
+<!-- Users Table -->
+<p-table 
+    #dt 
+    [value]="users" 
+    [lazy]="true" 
+    [paginator]="true" 
+    [rows]="10" 
+    [totalRecords]="totalRecords"
+    (onLazyLoad)="loadUsers($event)" 
+    [globalFilterFields]="['name', 'nameAr', 'email', 'status']"
+    [tableStyle]="{ 'min-width': '75rem' }" 
+    [(selection)]="selectedUsers" 
+    [rowHover]="true" 
+    dataKey="id"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} users" 
+    [showCurrentPageReport]="true"
     [rowsPerPageOptions]="[10, 20, 30]">
 
     <ng-template #caption>
@@ -29,15 +63,22 @@
 
     <ng-template #header>
         <tr>
-            <th><p-tableHeaderCheckbox /></th>
+            <!-- Checkbox column - only visible if user has DELETE permission -->
+            <th *appPermission="Permission.DELETE_ADMIN_USERS">
+                <p-tableHeaderCheckbox />
+            </th>
             <th *ngFor="let col of cols" [pSortableColumn]="col.field">{{ col.header }}</th>
-            <th></th>
+            <!-- Actions column - only visible if user has EDIT or DELETE permission -->
+            <th *appPermission="[Permission.EDIT_ADMIN_USERS, Permission.DELETE_ADMIN_USERS]" appPermissionMode="any">Actions</th>
         </tr>
     </ng-template>
 
     <ng-template #body let-user>
         <tr>
-            <td><p-tableCheckbox [value]="user" /></td>
+            <!-- Checkbox - only visible if user has DELETE permission -->
+            <td *appPermission="Permission.DELETE_ADMIN_USERS">
+                <p-tableCheckbox [value]="user" />
+            </td>
             <td>{{ user.id }}</td>
             <td>{{ user.name }}</td>
             <td>{{ user.nameAr }}</td>
@@ -47,17 +88,46 @@
             <td>
                 <p-tag [severity]="user.status === 'active' ? 'success' : 'danger'" [value]="user.status | uppercase" />
             </td>
-            <td>
-                <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true"
+            <!-- Action buttons - only visible based on permissions -->
+            <td *appPermission="[Permission.EDIT_ADMIN_USERS, Permission.DELETE_ADMIN_USERS]" appPermissionMode="any">
+                <!-- Edit button - only visible if user has EDIT permission -->
+                <p-button 
+                    *appPermission="Permission.EDIT_ADMIN_USERS"
+                    icon="pi pi-pencil" 
+                    class="mr-2" 
+                    [rounded]="true" 
+                    [outlined]="true"
                     (click)="editUser(user)" />
-                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
+                
+                <!-- Delete button - only visible if user has DELETE permission -->
+                <p-button 
+                    *appPermission="Permission.DELETE_ADMIN_USERS"
+                    icon="pi pi-trash" 
+                    severity="danger" 
+                    [rounded]="true" 
+                    [outlined]="true"
                     (click)="deleteUser(user)" />
             </td>
         </tr>
     </ng-template>
+    
+    <!-- Empty state message -->
+    <ng-template #emptymessage>
+        <tr>
+            <td colspan="8" class="text-center">No users found.</td>
+        </tr>
+    </ng-template>
 </p-table>
 
-<p-dialog [(visible)]="userDialog" [style]="{ width: '700px' }" header="User Details" [modal]="true">
+<!-- User Dialog -->
+<p-dialog 
+    [(visible)]="userDialog" 
+    [style]="{ width: '700px' }" 
+    header="User Details" 
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false">
+    
     <ng-template #content>
         <div class="grid grid-cols-2 gap-6" [formGroup]="userForm">
             <!-- Personal Information Section -->
@@ -92,8 +162,15 @@
 
             <div class="mb-4">
                 <label for="status" class="block font-bold mb-3">Status</label>
-                <p-select appendTo="body" [options]="statusOptions" optionLabel="name" optionValue="value"
-                    placeholder="Status" class="w-full" required formControlName="status" />
+                <p-select 
+                    appendTo="body" 
+                    [options]="statusOptions" 
+                    optionLabel="name" 
+                    optionValue="value"
+                    placeholder="Status" 
+                    class="w-full" 
+                    required 
+                    formControlName="status" />
             </div>
 
             <div class="mb-4" *ngIf="!currentUser?.id">
@@ -126,8 +203,15 @@
                         class="border rounded p-4 mb-3">
                         <div class="flex justify-between items-center mb-3">
                             <h4 class="font-bold">Level {{ i + 1 }}</h4>
-                            <p-button icon="pi pi-trash" severity="danger" text rounded (click)="removeLevel(i)"
-                                *ngIf="levelsArray.length > 1"></p-button>
+                            <!-- Remove level button - only visible if multiple levels exist -->
+                            <p-button 
+                                icon="pi pi-trash" 
+                                severity="danger" 
+                                text 
+                                rounded 
+                                (click)="removeLevel(i)"
+                                *ngIf="levelsArray.length > 1">
+                            </p-button>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
@@ -137,28 +221,47 @@
                             </div>
                             <div>
                                 <label class="block font-bold mb-2">Role Type</label>
-                                <p-select [options]="roles" optionLabel="name" optionValue="name" formControlName="role"
-                                    placeholder="Select Role Type" class="w-full"
+                                <p-select 
+                                    [options]="roles" 
+                                    optionLabel="name" 
+                                    optionValue="name" 
+                                    formControlName="role"
+                                    placeholder="Select Role Type" 
+                                    class="w-full"
                                     (onChange)="onRoleChange($event.value, i)">
                                 </p-select>
                             </div>
                             <div>
                                 <label class="block font-bold mb-2">Position</label>
-                                <p-select [options]="getPositionOptionsForRole(level.get('role')?.value)"
-                                    formControlName="position" placeholder="Select Position" class="w-full">
+                                <p-select 
+                                    [options]="getPositionOptionsForRole(level.get('role')?.value)"
+                                    formControlName="position" 
+                                    placeholder="Select Position" 
+                                    class="w-full">
                                 </p-select>
                             </div>
                         </div>
                     </div>
                 </div>
-                <p-button label="Add Level" icon="pi pi-plus" text (click)="addLevel()" class="mt-2"></p-button>
+                <!-- Add Level button -->
+                <p-button 
+                    label="Add Level" 
+                    icon="pi pi-plus" 
+                    text 
+                    (click)="addLevel()" 
+                    class="mt-2">
+                </p-button>
             </div>
         </div>
     </ng-template>
 
     <ng-template #footer>
         <p-button label="Cancel" icon="pi pi-times" text (click)="hideDialog()" />
-        <p-button label="Save" icon="pi pi-check" [disabled]="userForm.invalid" (click)="saveUser()" />
+        <p-button 
+            label="Save" 
+            icon="pi pi-check" 
+            [disabled]="userForm.invalid" 
+            (click)="saveUser()" />
     </ng-template>
 </p-dialog>
 

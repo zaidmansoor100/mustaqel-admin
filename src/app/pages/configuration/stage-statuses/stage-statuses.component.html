@@ -1,35 +1,59 @@
+<!-- Toolbar with permission-based buttons -->
 <p-toolbar styleClass="mb-6">
     <p-toast></p-toast>
     <ng-template #start>
-        <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="openNew()" />
-        <p-button severity="secondary" label="Delete" icon="pi pi-trash" outlined (onClick)="deleteselectedStages()"
+        <!-- New button - only visible if user has CREATE permission -->
+        <p-button 
+            *appPermission="Permission.CREATE_STAGE_STATUSES"
+            label="New" 
+            icon="pi pi-plus" 
+            severity="secondary" 
+            class="mr-2" 
+            (onClick)="openNew()" />
+        
+        <!-- Delete button - only visible if user has DELETE permission -->
+        <p-button 
+            *appPermission="Permission.DELETE_STAGE_STATUSES"
+            severity="secondary" 
+            label="Delete" 
+            icon="pi pi-trash" 
+            outlined 
+            (onClick)="deleteSelectedStages()"
             [disabled]="!selectedStageStatuses || !selectedStageStatuses.length" />
     </ng-template>
 
     <ng-template #end>
-        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+        <!-- Export button - only visible if user has EXPORT permission -->
+        <p-button 
+            *appPermission="Permission.EXPORT_DATA_TALENT"
+            label="Export" 
+            icon="pi pi-upload" 
+            severity="secondary" 
+            (onClick)="exportCSV()" />
     </ng-template>
 </p-toolbar>
 
-<p-table #dt
+<!-- Stage Statuses Table -->
+<p-table 
+    #dt
     [value]="stageStatuses"
     [lazy]="true"
     [paginator]="true"
     [rows]="10"
     [totalRecords]="totalRecords"
-    (onLazyLoad)="loadstages($event)"
+    (onLazyLoad)="loadStages($event)"
     [globalFilterFields]="['name', 'nameAr', 'status']"
     [tableStyle]="{ 'min-width': '75rem' }"
     [(selection)]="selectedStageStatuses"
     [rowHover]="true"
     dataKey="id"
-    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} stages"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} stage statuses"
     [showCurrentPageReport]="true"
     [rowsPerPageOptions]="[10, 20, 30]">
 
     <ng-template #caption>
         <div class="flex items-center justify-between">
-            <h5 class="m-0">Manage Stages</h5>
+            <h5 class="m-0">Manage Stage Statuses</h5>
             <p-iconfield>
                 <p-inputicon styleClass="pi pi-search" />
                 <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search..." />
@@ -39,66 +63,140 @@
 
     <ng-template #header>
         <tr>
-            <th><p-tableHeaderCheckbox /></th>
+            <!-- Checkbox column - only visible if user has DELETE permission -->
+            <th *appPermission="Permission.DELETE_STAGE_STATUSES">
+                <p-tableHeaderCheckbox />
+            </th>
             <th *ngFor="let col of cols" [pSortableColumn]="col.field">{{ col.header }}</th>
-            <th></th>
+            <!-- Actions column - only visible if user has EDIT or DELETE permission -->
+            <th *appPermission="[Permission.EDIT_STAGE_STATUSES, Permission.DELETE_STAGE_STATUSES]" appPermissionMode="any">Actions</th>
         </tr>
     </ng-template>
 
     <ng-template #body let-stageStatus>
         <tr>
-            <td><p-tableCheckbox [value]="stageStatus" /></td>
+            <!-- Checkbox - only visible if user has DELETE permission -->
+            <td *appPermission="Permission.DELETE_STAGE_STATUSES">
+                <p-tableCheckbox [value]="stageStatus" />
+            </td>
             <td>{{ stageStatus.id }}</td>
             <td>{{ stageStatus.name }}</td>
             <td>{{ stageStatus.nameAr }}</td>
-            <td>{{ stageStatus.stage.name }}</td>
+            <td>{{ stageStatus.stage?.name || 'N/A' }}</td>
             <td>{{ stageStatus.created_at | date:'short' }}</td>
             <td>{{ stageStatus.updated_at | date:'short' }}</td>
             <td>
-                <p-tag [severity]="stageStatus.status === 1 ? 'success' : 'danger'"
+                <p-tag 
+                    [severity]="stageStatus.status === 1 ? 'success' : 'danger'"
                     [value]="stageStatus.status === 1 ? 'Active' : 'Inactive'" />
             </td>
-            <td>
-                <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true"
-                    (click)="editstage(stageStatus)" />
-                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
-                    (click)="deletestage(stageStatus)" />
+            <!-- Action buttons - only visible based on permissions -->
+            <td *appPermission="[Permission.EDIT_STAGE_STATUSES, Permission.DELETE_STAGE_STATUSES]" appPermissionMode="any">
+                <!-- Edit button - only visible if user has EDIT permission -->
+                <p-button 
+                    *appPermission="Permission.EDIT_STAGE_STATUSES"
+                    icon="pi pi-pencil" 
+                    class="mr-2" 
+                    [rounded]="true" 
+                    [outlined]="true"
+                    (click)="editStage(stageStatus)" />
+                
+                <!-- Delete button - only visible if user has DELETE permission -->
+                <p-button 
+                    *appPermission="Permission.DELETE_STAGE_STATUSES"
+                    icon="pi pi-trash" 
+                    severity="danger" 
+                    [rounded]="true" 
+                    [outlined]="true"
+                    (click)="deleteStage(stageStatus)" />
+            </td>
+        </tr>
+    </ng-template>
+    
+    <!-- Empty state message -->
+    <ng-template #emptymessage>
+        <tr>
+            <td [attr.colspan]="(canDelete$ | async) ? 9 : 8" class="text-center">
+                No stage statuses found.
             </td>
         </tr>
     </ng-template>
 </p-table>
 
-<p-dialog [(visible)]="stageStatusDialog" [style]="{ width: '600px' }" header="Category Details" [modal]="true">
+<!-- Stage Status Dialog -->
+<p-dialog 
+    [(visible)]="stageStatusDialog" 
+    [style]="{ width: '600px' }" 
+    header="Stage Status Details" 
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false">
+
     <ng-template #content>
         <div class="grid grid-cols-2 gap-6" [formGroup]="stageStatusForm">
-            <div class="mb-4">
-                <label for="status" class="block font-bold mb-3">Select Stage</label>
-                <p-select appendTo="body" [options]="stages" [filter]="true" optionLabel="name"
-                    optionValue="id" placeholder="Stages" class="w-full"
+            <div class="mb-4 col-span-2">
+                <label for="stageId" class="block font-bold mb-3">Select Stage <span class="text-red-500">*</span></label>
+                <p-select 
+                    appendTo="body" 
+                    [options]="stages" 
+                    [filter]="true" 
+                    optionLabel="name"
+                    optionValue="id" 
+                    placeholder="Select Stage" 
+                    class="w-full"
                     formControlName="stageId" />
-
-            </div>
-            <div class="mb-4">
-                <label for="name" class="block font-bold mb-3">Name (English)</label>
-                <input class="w-full"  type="text" pInputText id="name" required autofocus formControlName="name" />
+                <small class="text-red-500" *ngIf="stageStatusForm.get('stageId')?.invalid && stageStatusForm.get('stageId')?.touched">
+                    Stage is required
+                </small>
             </div>
 
-            <div class="mb-4">
-                <label for="nameAr" class="block font-bold mb-3">Name (Arabic)</label>
-                <input class="w-full"  type="text" pInputText id="nameAr" required  formControlName="nameAr"/>
+            <div class="mb-4 col-span-2">
+                <label for="name" class="block font-bold mb-3">Name (English) <span class="text-red-500">*</span></label>
+                <input class="w-full" type="text" pInputText id="name" required autofocus formControlName="name" />
+                <small class="text-red-500" *ngIf="stageStatusForm.get('name')?.invalid && stageStatusForm.get('name')?.touched">
+                    <span *ngIf="stageStatusForm.get('name')?.hasError('required')">Name is required</span>
+                    <span *ngIf="stageStatusForm.get('name')?.hasError('minlength')">Name must be at least 3 characters</span>
+                    <span *ngIf="stageStatusForm.get('name')?.hasError('maxlength')">Name cannot exceed 50 characters</span>
+                    <span *ngIf="stageStatusForm.get('name')?.hasError('alpha')">Only letters are allowed</span>
+                </small>
             </div>
 
-            <div class="mb-4">
-                <label for="status" class="block font-bold mb-3">Status</label>
-                <p-select appendTo="body" [options]="status" optionLabel="name" optionValue="id" 
-                    placeholder="Status" class="w-full" required  formControlName="status"/>
+            <div class="mb-4 col-span-2">
+                <label for="nameAr" class="block font-bold mb-3">Name (Arabic) <span class="text-red-500">*</span></label>
+                <input class="w-full" type="text" pInputText id="nameAr" required formControlName="nameAr" />
+                <small class="text-red-500" *ngIf="stageStatusForm.get('nameAr')?.invalid && stageStatusForm.get('nameAr')?.touched">
+                    <span *ngIf="stageStatusForm.get('nameAr')?.hasError('required')">Arabic name is required</span>
+                    <span *ngIf="stageStatusForm.get('nameAr')?.hasError('minlength')">Name must be at least 3 characters</span>
+                    <span *ngIf="stageStatusForm.get('nameAr')?.hasError('maxlength')">Name cannot exceed 255 characters</span>
+                    <span *ngIf="stageStatusForm.get('nameAr')?.hasError('arabic')">Only Arabic characters are allowed</span>
+                </small>
+            </div>
+
+            <div class="mb-4 col-span-2">
+                <label for="status" class="block font-bold mb-3">Status <span class="text-red-500">*</span></label>
+                <p-select 
+                    appendTo="body" 
+                    [options]="status" 
+                    optionLabel="name" 
+                    optionValue="id" 
+                    placeholder="Select Status"
+                    class="w-full" 
+                    required 
+                    formControlName="status" />
+                <small class="text-red-500" *ngIf="stageStatusForm.get('status')?.invalid && stageStatusForm.get('status')?.touched">
+                    Status is required
+                </small>
             </div>
         </div>
     </ng-template>
 
     <ng-template #footer>
         <p-button label="Cancel" icon="pi pi-times" text (click)="hideDialog()" />
-        <p-button label="Save" icon="pi pi-check" [disabled]="stageStatusForm.invalid" (click)="savestage()" />
+        <p-button 
+            label="Save" 
+            icon="pi pi-check" 
+            [disabled]="stageStatusForm.invalid" 
+            (click)="saveStage()" />
     </ng-template>
 </p-dialog>
 

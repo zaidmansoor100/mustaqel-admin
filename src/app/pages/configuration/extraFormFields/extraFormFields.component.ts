@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy } from '@angular/core';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { Table, TableModule } from 'primeng/table';
 import { CommonModule } from '@angular/common';
@@ -19,9 +19,14 @@ import { SelectModule } from 'primeng/select';
 import { CustomValidators } from '@/common/validators/custom-validators';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { TextareaModule } from 'primeng/textarea';
+import { PermissionDirective } from '@/directives/permission.directive';
+import { PermissionService } from '@/services/permission.service';
+import { Permission } from '@/enums/permission.enum';
+import { Subject, takeUntil } from 'rxjs';
 
 @Component({
     selector: 'app-extraFormFields',
+    standalone: true,
     imports: [
         MultiSelectModule,
         ReactiveFormsModule,
@@ -39,109 +44,33 @@ import { TextareaModule } from 'primeng/textarea';
         InputIconModule,
         IconFieldModule,
         ConfirmDialogModule,
-        TextareaModule
+        TextareaModule,
+        PermissionDirective
     ],
     templateUrl: './extraFormFields.component.html',
     styleUrl: './extraFormFields.component.scss',
     providers: [MessageService, ConfirmationService]
 })
-export class ExtraFormFieldsComponent implements OnInit {
+export class ExtraFormFieldsComponent implements OnInit, OnDestroy {
     formFieldDialog: boolean = false;
     submitted: boolean = false;
     selectedFormFields: any[] = [];
+
     status: any = [
-        {
-            id: 1,
-            name: 'Active'
-        },
-        {
-            id: 0,
-            name: 'Inactive'
-        }
+        { id: 1, name: 'Active' },
+        { id: 0, name: 'Inactive' }
     ];
 
-    fieldTypes: any = [
-        {
-            name: 'file'
-        },
-        {
-            name: 'text'
-        },
-        {
-            name: 'radio'
-        },
-        {
-            name: 'checkbox'
-        },
-        {
-            name: 'textarea'
-        },
-        {
-            name: 'select'
-        }
-    ];
+    fieldTypes: any = [{ name: 'file' }, { name: 'text' }, { name: 'radio' }, { name: 'checkbox' }, { name: 'textarea' }, { name: 'select' }];
 
-    onshoreOffShoreType: any = [
-        {
-            name: 'onshore'
-        },
-        {
-            name: 'offshore'
-        },
-        {
-            name: 'both'
-        }
-    ];
+    onshoreOffShoreType: any = [{ name: 'onshore' }, { name: 'offshore' }, { name: 'both' }];
 
     idRequired: any = [
-        {
-            value: 1,
-            name: 'Yes'
-        },
-        {
-            value: 0,
-            name: 'No'
-        }
+        { value: 1, name: 'Yes' },
+        { value: 0, name: 'No' }
     ];
 
-    extensions: any = [
-        {
-            name: 'png'
-        },
-        {
-            name: 'jpg'
-        },
-        {
-            name: 'jpeg'
-        },
-        {
-            name: 'pdf'
-        },
-        {
-            name: 'docx'
-        },
-        {
-            name: 'doc'
-        },
-        {
-            name: 'xlsx'
-        },
-        {
-            name: 'xlsb'
-        },
-        {
-            name: 'xls'
-        },
-        {
-            name: 'xltx'
-        },
-        {
-            name: 'xlsm'
-        },
-        {
-            name: 'csv'
-        }
-    ];
+    extensions: any = [{ name: 'png' }, { name: 'jpg' }, { name: 'jpeg' }, { name: 'pdf' }, { name: 'docx' }, { name: 'doc' }, { name: 'xlsx' }, { name: 'xlsb' }, { name: 'xls' }, { name: 'xltx' }, { name: 'xlsm' }, { name: 'csv' }];
 
     categories: any[] = [];
     sectorsMap: Map<number, any[]> = new Map();
@@ -151,9 +80,19 @@ export class ExtraFormFieldsComponent implements OnInit {
     entitiesMap: Map<number, any[]> = new Map();
     incubatorsMap: Map<number, any[]> = new Map();
 
-    // Add properties for dynamic meta fields
-    dropdownOptions: string[] = []; // For storing dropdown options
-    currentFieldType: string = ''; // Track current field type
+    // Dynamic meta fields
+    dropdownOptions: string[] = [];
+    currentFieldType: string = '';
+
+    // Permission flags for UI
+    canCreate$: any;
+    canEdit$: any;
+    canDelete$: any;
+    canView$: any;
+    canExport$: any;
+
+    // Make Permission enum available in template
+    Permission = Permission;
 
     @ViewChild('dt') dt!: Table;
 
@@ -167,25 +106,39 @@ export class ExtraFormFieldsComponent implements OnInit {
     page = 1;
     rows = 10;
 
+    private destroy$ = new Subject<void>();
+
     constructor(
         private messageService: MessageService,
         private confirmationService: ConfirmationService,
         private configurationService: ConfigurationService,
         private activatedRoute: ActivatedRoute,
-        private fb: FormBuilder
+        private fb: FormBuilder,
+        private permissionService: PermissionService
     ) {}
 
     ngOnInit() {
-        this.formFields = this.activatedRoute.snapshot.data['formFieldsResolver'][0]['data'];
-        this.categories = this.activatedRoute.snapshot.data['formFieldsResolver'][1]['data'];
+        this.canCreate$ = this.permissionService.hasPermission(Permission.CREATE_FORM_FIELDS);
+        this.canEdit$ = this.permissionService.hasPermission(Permission.EDIT_FORM_FIELDS);
+        this.canDelete$ = this.permissionService.hasPermission(Permission.DELETE_FORM_FIELDS);
+        this.canView$ = this.permissionService.hasPermission(Permission.VIEW_FORM_FIELDS);
+        this.canExport$ = this.permissionService.hasPermission(Permission.EXPORT_DATA_TALENT);
+        const resolverData = this.activatedRoute.snapshot.data['formFieldsResolver'];
+        this.formFields = resolverData?.[0]?.data || [];
+        this.categories = resolverData?.[1]?.data || [];
         this.exportCSVData();
+        this.formBuild();
+    }
+
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
     }
 
     get identificationDataFormArray(): FormArray {
         return this.formFieldForm.get('identificationData') as FormArray;
     }
 
-    // Get category name by slug for key field
     getCategoryKey(slug: string): string {
         const category = this.categories.find((cat) => cat.slug === slug);
         return category ? category.name : slug;
@@ -215,16 +168,13 @@ export class ExtraFormFieldsComponent implements OnInit {
         return this.incubatorsMap.get(index) || [];
     }
 
-    // Handle field type change
     onFieldTypeChange(type: string) {
         this.currentFieldType = type;
 
-        // Reset dropdown options when type changes
         if (type !== 'select' && type !== 'radio' && type !== 'checkbox') {
             this.dropdownOptions = [];
         }
 
-        // Clear validators based on type
         const metaFields = this.formFieldForm.get('metaFields') as FormGroup;
 
         if (type === 'file') {
@@ -242,7 +192,6 @@ export class ExtraFormFieldsComponent implements OnInit {
         metaFields.get('dropdownOptions')?.updateValueAndValidity();
     }
 
-    // Add dropdown option
     addDropdownOption(option: string) {
         if (option && option.trim()) {
             this.dropdownOptions.push(option.trim());
@@ -250,13 +199,11 @@ export class ExtraFormFieldsComponent implements OnInit {
         }
     }
 
-    // Remove dropdown option
     removeDropdownOption(index: number) {
         this.dropdownOptions.splice(index, 1);
         this.updateDropdownOptionsInForm();
     }
 
-    // Update form control with dropdown options
     updateDropdownOptionsInForm() {
         const metaFields = this.formFieldForm.get('metaFields') as FormGroup;
         metaFields.get('dropdownOptions')?.setValue(this.dropdownOptions);
@@ -281,6 +228,8 @@ export class ExtraFormFieldsComponent implements OnInit {
             { field: 'nameEn', header: 'Field (English)' },
             { field: 'nameAr', header: 'Field (Arabic)' },
             { field: 'type', header: 'Type' },
+            { field: 'onShore/OffShore', header: 'On-Shore/Off-Shore' },
+            { field: 'isRequired', header: 'Required' },
             { field: 'meta.extensions', header: 'Extensions' },
             { field: 'created_at', header: 'Created At' },
             { field: 'updated_at', header: 'Updated At' },
@@ -300,31 +249,33 @@ export class ExtraFormFieldsComponent implements OnInit {
     loadFormFields(event: any) {
         const page = event.first / event.rows + 1;
         const perPage = event.rows;
-        this.configurationService.getFormFields(`?page=${page}&per_page=${perPage}`).subscribe({
-            next: (res) => {
-                this.formFields = res.data;
-                this.totalRecords = res.total;
-                this.page = res.current_page;
-            },
-            error: (error: any) => {
-                console.log(error);
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'Failed to load Fields',
-                    life: 3000
-                });
-            }
-        });
+
+        this.configurationService
+            .getFormFields(`?page=${page}&per_page=${perPage}`)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (res) => {
+                    this.formFields = res.data;
+                    this.totalRecords = res.total;
+                    this.page = res.current_page;
+                },
+                error: (error: any) => {
+                    console.log(error);
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Error',
+                        detail: 'Failed to load Fields',
+                        life: 3000
+                    });
+                }
+            });
     }
 
     async onDropDownChange(type: string, value: any, index: number) {
         const idData = this.identificationDataFormArray.at(index);
 
         if (type === 'categorySlug' && value) {
-            // Update key field with category slug
             idData.get('key')?.setValue(value);
-
             await this.loadSubCategoriesAndSectors(value, index);
         } else if (type === 'sectorSlug' && value) {
             await this.loadActivities(value, index);
@@ -332,18 +283,12 @@ export class ExtraFormFieldsComponent implements OnInit {
             await this.loadSubActivitiesAndEntities(value, index);
         }
 
-        // Reset dependent fields
         if (type === 'categorySlug') {
             idData.get('sectorSlug')?.setValue('');
             idData.get('activitySlug')?.setValue('');
             idData.get('subActivitySlug')?.setValue('');
             idData.get('entitySlug')?.setValue('');
             idData.get('incubatorSlug')?.setValue('');
-            // this.sectorsMap.set(index, []);
-            // this.activitiesMap.set(index, []);
-            // this.subActivitiesMap.set(index, []);
-            // this.entitiesMap.set(index, []);
-            // this.incubatorsMap.set(index, []);
             if (value === 'tal') {
                 this.incubatorsMap.set(index, []);
             } else if (value === 'ent') {
@@ -353,95 +298,93 @@ export class ExtraFormFieldsComponent implements OnInit {
             idData.get('activitySlug')?.setValue('');
             idData.get('subActivitySlug')?.setValue('');
             idData.get('entitySlug')?.setValue('');
-            // this.activitiesMap.set(index, []);
-            // this.subActivitiesMap.set(index, []);
-            // this.entitiesMap.set(index, []);
         } else if (type === 'activitySlug') {
             idData.get('subActivitySlug')?.setValue('');
             idData.get('entitySlug')?.setValue('');
-            // this.subActivitiesMap.set(index, []);
-            // this.entitiesMap.set(index, []);
         }
     }
 
     loadSubCategoriesAndSectors(slug: string, index: number): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.configurationService.getSubCateogries_Sectors_Incubator(slug).subscribe({
-                next: (res) => {
-                    this.subCategoriesMap.set(index, res.data['subCategories'] || []);
-                    this.sectorsMap.set(index, res.data['sectors'] || []);
-                    console.log(this.sectorsMap);
-
-                    this.incubatorsMap.set(index, res.data['incubator'] || []);
-
-                    this.activitiesMap.set(index, []);
-                    this.subActivitiesMap.set(index, []);
-                    this.entitiesMap.set(index, []);
-
-                    resolve();
-                },
-                error: (err) => {
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: err.error.message,
-                        life: 3000
-                    });
-                    reject(err);
-                }
-            });
+            this.configurationService
+                .getSubCateogries_Sectors_Incubator(slug)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res) => {
+                        this.subCategoriesMap.set(index, res.data['subCategories'] || []);
+                        this.sectorsMap.set(index, res.data['sectors'] || []);
+                        this.incubatorsMap.set(index, res.data['incubator'] || []);
+                        this.activitiesMap.set(index, []);
+                        this.subActivitiesMap.set(index, []);
+                        this.entitiesMap.set(index, []);
+                        resolve();
+                    },
+                    error: (err) => {
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: err.error?.message || 'Failed to load data',
+                            life: 3000
+                        });
+                        reject(err);
+                    }
+                });
         });
     }
 
     loadActivities(slug: string, index: number): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.configurationService.getActivitiesOfSectors(slug).subscribe({
-                next: (res) => {
-                    this.activitiesMap.set(index, res.data || []);
-                    this.subActivitiesMap.set(index, []);
-                    this.entitiesMap.set(index, []);
-                    resolve();
-                },
-                error: (err) => {
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: err.error.message,
-                        life: 3000
-                    });
-                    reject(err);
-                }
-            });
+            this.configurationService
+                .getActivitiesOfSectors(slug)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res) => {
+                        this.activitiesMap.set(index, res.data || []);
+                        this.subActivitiesMap.set(index, []);
+                        this.entitiesMap.set(index, []);
+                        resolve();
+                    },
+                    error: (err) => {
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: err.error?.message || 'Failed to load activities',
+                            life: 3000
+                        });
+                        reject(err);
+                    }
+                });
         });
     }
 
     loadSubActivitiesAndEntities(slug: string, index: number): Promise<void> {
         return new Promise((resolve, reject) => {
-            this.configurationService.getSubActivities_Entities(slug).subscribe({
-                next: (res) => {
-                    this.subActivitiesMap.set(index, res.data['subActivities'] || []);
-                    this.entitiesMap.set(index, res.data['entities'] || []);
-                    resolve();
-                },
-                error: (err) => {
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: err.error.message,
-                        life: 3000
-                    });
-                    reject(err);
-                }
-            });
+            this.configurationService
+                .getSubActivities_Entities(slug)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res) => {
+                        this.subActivitiesMap.set(index, res.data['subActivities'] || []);
+                        this.entitiesMap.set(index, res.data['entities'] || []);
+                        resolve();
+                    },
+                    error: (err) => {
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: err.error?.message || 'Failed to load sub-activities',
+                            life: 3000
+                        });
+                        reject(err);
+                    }
+                });
         });
     }
 
     formBuild(formField?: any) {
-        // Reset dropdown options
         this.dropdownOptions = [];
         this.currentFieldType = '';
 
-        // Initialize maps
         this.subCategoriesMap.clear();
         this.sectorsMap.clear();
         this.activitiesMap.clear();
@@ -449,11 +392,9 @@ export class ExtraFormFieldsComponent implements OnInit {
         this.entitiesMap.clear();
         this.incubatorsMap.clear();
 
-        // Create identification data array items first
         const idDataItems: FormGroup[] = [];
 
         if (formField?.formMetas) {
-            // Convert single formMetas object to array for the new API
             const identificationData = [
                 {
                     key: formField.formMetas.key,
@@ -467,26 +408,22 @@ export class ExtraFormFieldsComponent implements OnInit {
                 idDataItems.push(this.createIdentificationDataGroup(item));
             });
         } else {
-            // New mode - add one empty identification data
             idDataItems.push(this.createIdentificationDataGroup());
         }
 
-        // Set current field type for dynamic meta fields
         this.currentFieldType = formField?.type || '';
 
-        // Load dropdown options if they exist in meta
         if (formField?.meta?.dropdownOptions) {
             this.dropdownOptions = formField.meta.dropdownOptions;
         }
 
-        // Create the form with the array
         this.formFieldForm = this.fb.group({
             identificationData: this.fb.array(idDataItems),
             formFields: this.fb.group({
                 nameEn: [formField?.nameEn || '', [Validators.required, CustomValidators.alpha(), Validators.maxLength(50), Validators.minLength(3)]],
                 nameAr: [formField?.nameAr || '', [Validators.required, CustomValidators.arabic(), Validators.maxLength(255), Validators.minLength(3)]],
-                type: [formField?.type || '', [Validators.required, CustomValidators.alpha(), Validators.maxLength(255), Validators.minLength(3)]],
-                status: [formField?.status || '', [Validators.required, CustomValidators.numeric(), Validators.maxLength(1)]]
+                type: [formField?.type || '', [Validators.required]],
+                status: [formField?.status || 1, [Validators.required]]
             }),
             metaFields: this.fb.group({
                 extensions: [formField?.meta?.extensions || [], []],
@@ -494,7 +431,6 @@ export class ExtraFormFieldsComponent implements OnInit {
             })
         });
 
-        // Apply validators based on initial field type
         if (this.currentFieldType) {
             this.onFieldTypeChange(this.currentFieldType);
         }
@@ -502,21 +438,21 @@ export class ExtraFormFieldsComponent implements OnInit {
 
     createIdentificationDataGroup(data?: any): FormGroup {
         return this.fb.group({
-            key: [data?.key || '', [Validators.required, CustomValidators.alpha(), Validators.maxLength(255), Validators.minLength(2)]],
-            onshoreOffShore: [data?.onshoreOffShore || 'both', [Validators.required, CustomValidators.alpha(), Validators.maxLength(255), Validators.minLength(3)]],
-            isRequired: [data?.isRequired !== undefined ? data.isRequired : true, [Validators.required]],
-            categorySlug: [data?.value?.categorySlug || '', [Validators.required, CustomValidators.alpha(), Validators.maxLength(255), Validators.minLength(2)]],
-            subCategorySlug: [data?.value?.subCategorySlug || '', [CustomValidators.alpha(), Validators.maxLength(255), Validators.minLength(2)]],
-            sectorSlug: [data?.value?.sectorSlug || '', [CustomValidators.alpha(), Validators.maxLength(255), Validators.minLength(2)]],
-            activitySlug: [data?.value?.activitySlug || '', [CustomValidators.alpha(), Validators.maxLength(255), Validators.minLength(2)]],
-            subActivitySlug: [data?.value?.subActivitySlug || '', [CustomValidators.alpha(), Validators.maxLength(255), Validators.minLength(2)]],
-            entitySlug: [data?.value?.entitySlug || '', [CustomValidators.alpha(), Validators.maxLength(255), Validators.minLength(2)]],
-            incubatorSlug: [data?.value?.incubatorSlug || '', [CustomValidators.alpha(), Validators.maxLength(255), Validators.minLength(2)]]
+            key: [data?.key || '', [Validators.required, Validators.maxLength(255), Validators.minLength(2)]],
+            onshoreOffShore: [data?.onshoreOffShore || 'both', [Validators.required]],
+            isRequired: [data?.isRequired !== undefined ? data.isRequired : 1, [Validators.required]],
+            categorySlug: [data?.value?.categorySlug || '', [Validators.required]],
+            subCategorySlug: [data?.value?.subCategorySlug || '', []],
+            sectorSlug: [data?.value?.sectorSlug || '', []],
+            activitySlug: [data?.value?.activitySlug || '', []],
+            subActivitySlug: [data?.value?.subActivitySlug || '', []],
+            entitySlug: [data?.value?.entitySlug || '', []],
+            incubatorSlug: [data?.value?.incubatorSlug || '', []]
         });
     }
 
     addIdentificationData(): void {
-        this.identificationDataFormArray.push(this.createIdentificationDataGroup() as unknown as AbstractControl);
+        this.identificationDataFormArray.push(this.createIdentificationDataGroup());
     }
 
     removeIdentificationData(index: number): void {
@@ -527,7 +463,6 @@ export class ExtraFormFieldsComponent implements OnInit {
         this.subActivitiesMap.delete(index);
         this.entitiesMap.delete(index);
         this.incubatorsMap.delete(index);
-
         this.reindexMaps();
     }
 
@@ -577,44 +512,43 @@ export class ExtraFormFieldsComponent implements OnInit {
     }
 
     async getSingleFormField(id: number) {
-        this.configurationService.getFormFieldId(id).subscribe({
-            next: async (res: any) => {
-                this.formField = res;
+        this.configurationService
+            .getFormFieldId(id)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: async (res: any) => {
+                    this.formField = res;
+                    this.formFieldDialog = true;
+                    this.formBuild(this.formField);
 
-                this.formFieldDialog = true;
-                this.formBuild(this.formField);
+                    if (res.formMetas?.value) {
+                        const index = 0;
+                        const value = res.formMetas.value;
 
-                // Load dependent dropdowns for each identification data
-                if (res.formMetas?.value) {
-                    const index = 0; // Only one item in array for old data
-                    const value = res.formMetas.value;
-
-                    if (value.categorySlug) {
-                        // Set key from category slug
-                        const idDataArray = this.identificationDataFormArray;
-                        if (idDataArray.length > 0) {
-                            idDataArray.at(0).get('key')?.setValue(value.categorySlug);
+                        if (value.categorySlug) {
+                            const idDataArray = this.identificationDataFormArray;
+                            if (idDataArray.length > 0) {
+                                idDataArray.at(0).get('key')?.setValue(value.categorySlug);
+                            }
+                            await this.loadSubCategoriesAndSectors(value.categorySlug, index);
                         }
-
-                        await this.loadSubCategoriesAndSectors(value.categorySlug, index);
+                        if (value.sectorSlug) {
+                            await this.loadActivities(value.sectorSlug, index);
+                        }
+                        if (value.activitySlug) {
+                            await this.loadSubActivitiesAndEntities(value.activitySlug, index);
+                        }
                     }
-                    if (value.sectorSlug) {
-                        await this.loadActivities(value.sectorSlug, index);
-                    }
-                    if (value.activitySlug) {
-                        await this.loadSubActivitiesAndEntities(value.activitySlug, index);
-                    }
+                },
+                error: (error: any) => {
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Error',
+                        detail: error.error?.message || 'Failed to load form field',
+                        life: 3000
+                    });
                 }
-            },
-            error: (error: any) => {
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: error.error.message,
-                    life: 3000
-                });
-            }
-        });
+            });
     }
 
     deleteSelectedFormFields() {
@@ -623,9 +557,9 @@ export class ExtraFormFieldsComponent implements OnInit {
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                const deleteRequests = this.selectedFormFields.map((cat: any) => this.configurationService.deleteFormField(cat.id));
+                const deleteRequests = this.selectedFormFields.map((cat: any) => this.configurationService.deleteFormField(cat.id).toPromise());
 
-                Promise.all(deleteRequests.map((req: any) => req.toPromise()))
+                Promise.all(deleteRequests)
                     .then(() => {
                         this.formFields = this.formFields.filter((val: any) => !this.selectedFormFields.includes(val));
                         this.selectedFormFields = [];
@@ -651,30 +585,34 @@ export class ExtraFormFieldsComponent implements OnInit {
 
     deleteFormField(formField: any) {
         this.confirmationService.confirm({
-            message: 'Are you sure you want to delete ' + formField.nameEn + '?',
+            message: `Are you sure you want to delete ${formField.nameEn}?`,
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                this.configurationService.deleteFormField(formField.id).subscribe({
-                    next: () => {
-                        this.formFields = this.formFields.filter((val) => val.id !== formField.id);
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Successful',
-                            detail: 'Field Deleted',
-                            life: 3000
-                        });
-                    },
-                    error: (error) => {
-                        console.log(error);
-                        this.messageService.add({
-                            severity: 'error',
-                            summary: 'Error',
-                            detail: error.error.message,
-                            life: 3000
-                        });
-                    }
-                });
+                this.configurationService
+                    .deleteFormField(formField.id)
+                    .pipe(takeUntil(this.destroy$))
+                    .subscribe({
+                        next: () => {
+                            this.formFields = this.formFields.filter((val) => val.id !== formField.id);
+                            this.messageService.add({
+                                severity: 'success',
+                                summary: 'Successful',
+                                detail: 'Field Deleted',
+                                life: 3000
+                            });
+                        },
+                        error: (error) => {
+                            console.log(error);
+                            const errorMessage = error.error?.message || error.message || 'Failed to delete field';
+                            this.messageService.add({
+                                severity: 'error',
+                                summary: 'Error',
+                                detail: errorMessage,
+                                life: 3000
+                            });
+                        }
+                    });
             }
         });
     }
@@ -695,21 +633,14 @@ export class ExtraFormFieldsComponent implements OnInit {
         const formValue = this.formFieldForm.value;
         const fieldType = formValue.formFields.type;
 
-        // Prepare meta fields based on type
         let metaFields: any = {};
 
         if (fieldType === 'file') {
-            metaFields = {
-                extensions: formValue.metaFields.extensions
-            };
+            metaFields = { extensions: formValue.metaFields.extensions };
         } else if (fieldType === 'select' || fieldType === 'radio' || fieldType === 'checkbox') {
-            metaFields = {
-                dropdownOptions: this.dropdownOptions
-            };
+            metaFields = { dropdownOptions: this.dropdownOptions };
         }
-        // For text, textarea - no meta fields needed
 
-        // Transform the form value to match the new API structure
         const transformedData = {
             identificationData: formValue.identificationData.map((item: any) => ({
                 key: item.key,
@@ -734,86 +665,76 @@ export class ExtraFormFieldsComponent implements OnInit {
             metaFields: metaFields
         };
 
-        console.log(transformedData);
+        console.log('Saving form field:', transformedData);
 
-        // if (this.formField.id) {
-        //     // Update existing Field
-        //     this.configurationService.updateFormField(this.formField.id, transformedData).subscribe({
-        //         next: (res) => {
-        //             const index = this.formFields.findIndex((c) => c.id === this.formField.id);
-        //             // Transform response back to old structure for display
-        //             if (res.identificationData && res.identificationData.length > 0) {
-        //                 res.formMetas = {
-        //                     key: res.identificationData[0].key,
-        //                     onshoreOffShore: res.identificationData[0].onshoreOffShore,
-        //                     isRequired: res.identificationData[0].isRequired,
-        //                     value: res.identificationData[0].value
-        //                 };
-        //             }
-        //             // Add meta data
-        //             res.meta = metaFields;
-
-        //             this.formFields[index] = res;
-        //             this.messageService.add({
-        //                 severity: 'success',
-        //                 summary: 'Successful',
-        //                 detail: 'Field Updated',
-        //                 life: 3000
-        //             });
-        //             this.formFieldDialog = false;
-        //             this.formField = {};
-        //             this.dropdownOptions = [];
-        //             this.currentFieldType = '';
-        //         },
-        //         error: (error) => {
-        //             console.log(error);
-        //             this.messageService.add({
-        //                 severity: 'error',
-        //                 summary: 'Error',
-        //                 detail: error.error.message,
-        //                 life: 3000
-        //             });
-        //         }
-        //     });
-        // } else {
-        //     // Create new Field with new structure
-        //     this.configurationService.createFormField(transformedData).subscribe({
-        //         next: (res) => {
-        //             // Transform response back to old structure for display
-        //             if (res.identificationData && res.identificationData.length > 0) {
-        //                 res.formMetas = {
-        //                     key: res.identificationData[0].key,
-        //                     onshoreOffShore: res.identificationData[0].onshoreOffShore,
-        //                     isRequired: res.identificationData[0].isRequired,
-        //                     value: res.identificationData[0].value
-        //                 };
-        //             }
-        //             // Add meta data
-        //             res.meta = metaFields;
-
-        //             this.formFields.push(res);
-        //             this.messageService.add({
-        //                 severity: 'success',
-        //                 summary: 'Successful',
-        //                 detail: 'Field Created',
-        //                 life: 3000
-        //             });
-        //             this.formFieldDialog = false;
-        //             this.formField = {};
-        //             this.dropdownOptions = [];
-        //             this.currentFieldType = '';
-        //         },
-        //         error: (error) => {
-        //             console.log(error.error.message);
-        //             this.messageService.add({
-        //                 severity: 'error',
-        //                 summary: 'Error',
-        //                 detail: error.error.message,
-        //                 life: 3000
-        //             });
-        //         }
-        //     });
-        // }
+        if (this.formField.id) {
+            this.configurationService
+                .updateFormField(this.formField.id, transformedData)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res) => {
+                        const index = this.formFields.findIndex((c) => c.id === this.formField.id);
+                        if (index !== -1) {
+                            this.formFields[index] = res;
+                        }
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'Successful',
+                            detail: 'Field Updated',
+                            life: 3000
+                        });
+                        this.formFieldDialog = false;
+                        this.formField = {};
+                        this.dropdownOptions = [];
+                        this.currentFieldType = '';
+                        if (this.dt) {
+                            this.dt.reset();
+                        }
+                    },
+                    error: (error) => {
+                        console.log(error);
+                        const errorMessage = error.error?.message || error.message || 'Failed to update field';
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: errorMessage,
+                            life: 3000
+                        });
+                    }
+                });
+        } else {
+            this.configurationService
+                .createFormField(transformedData)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res) => {
+                        this.formFields.unshift(res);
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'Successful',
+                            detail: 'Field Created',
+                            life: 3000
+                        });
+                        this.formFieldDialog = false;
+                        this.formField = {};
+                        this.dropdownOptions = [];
+                        this.currentFieldType = '';
+                        if (this.dt) {
+                            this.dt.reset();
+                        }
+                    },
+                    error: (error) => {
+                        console.log(error);
+                        const errorMessage = error.error?.message || error.message || 'Failed to create field';
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: errorMessage,
+                            life: 3000
+                        });
+                    }
+                });
+        }
     }
 
     hideDialog() {

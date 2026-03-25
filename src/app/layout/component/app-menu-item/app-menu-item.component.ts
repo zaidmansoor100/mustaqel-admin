@@ -1,4 +1,5 @@
-import { Component, HostBinding, Input } from '@angular/core';
+// src/app/layout/component/app-menu-item/app-menu-item.component.ts
+import { Component, HostBinding, Input, OnInit, OnDestroy } from '@angular/core';
 import { NavigationEnd, Router, RouterModule } from '@angular/router';
 import { animate, state, style, transition, trigger } from '@angular/animations';
 import { Subscription } from 'rxjs';
@@ -9,44 +10,28 @@ import { MenuItem } from 'primeng/api';
 import { LayoutService } from '@/layout/service/layout.service';
 
 @Component({
-  selector: '[app-menuitem]',
+    selector: '[app-menuitem]',
     imports: [CommonModule, RouterModule, RippleModule],
-  templateUrl: './app-menu-item.component.html',
-  styleUrl: './app-menu-item.component.scss',
-  animations: [
+    templateUrl: './app-menu-item.component.html',
+    styleUrl: './app-menu-item.component.scss',
+    animations: [
         trigger('children', [
-            state(
-                'collapsed',
-                style({
-                    height: '0'
-                })
-            ),
-            state(
-                'expanded',
-                style({
-                    height: '*'
-                })
-            ),
+            state('collapsed', style({ height: '0' })),
+            state('expanded', style({ height: '*' })),
             transition('collapsed <=> expanded', animate('400ms cubic-bezier(0.86, 0, 0.07, 1)'))
         ])
     ],
     providers: [LayoutService]
 })
-export class AppMenuItemComponent {
-@Input() item!: MenuItem;
-
+export class AppMenuItemComponent implements OnInit, OnDestroy {
+    @Input() item!: MenuItem;
     @Input() index!: number;
-
     @Input() @HostBinding('class.layout-root-menuitem') root!: boolean;
-
     @Input() parentKey!: string;
 
     active = false;
-
     menuSourceSubscription: Subscription;
-
     menuResetSubscription: Subscription;
-
     key: string = '';
 
     constructor(
@@ -69,7 +54,7 @@ export class AppMenuItemComponent {
             this.active = false;
         });
 
-        this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe((params) => {
+        this.router.events.pipe(filter((event) => event instanceof NavigationEnd)).subscribe(() => {
             if (this.item.routerLink) {
                 this.updateActiveStateFromRoute();
             }
@@ -85,7 +70,12 @@ export class AppMenuItemComponent {
     }
 
     updateActiveStateFromRoute() {
-        let activeRoute = this.router.isActive(this.item.routerLink[0], { paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' });
+        let activeRoute = this.router.isActive(this.item.routerLink[0], { 
+            paths: 'exact', 
+            queryParams: 'ignored', 
+            matrixParams: 'ignored', 
+            fragment: 'ignored' 
+        });
 
         if (activeRoute) {
             this.layoutService.onMenuStateChange({ key: this.key, routeEvent: true });
@@ -93,18 +83,18 @@ export class AppMenuItemComponent {
     }
 
     itemClick(event: Event) {
-        // avoid processing disabled items
-        if (this.item.disabled) {
+        // Avoid processing disabled or invisible items
+        if (this.item.disabled || this.item.visible === false) {
             event.preventDefault();
             return;
         }
 
-        // execute command
+        // Execute command
         if (this.item.command) {
             this.item.command({ originalEvent: event, item: this.item });
         }
 
-        // toggle active state
+        // Toggle active state
         if (this.item.items) {
             this.active = !this.active;
         }

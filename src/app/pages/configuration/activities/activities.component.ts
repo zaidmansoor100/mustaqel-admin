@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy } from '@angular/core';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { Table, TableModule } from 'primeng/table';
 import { CommonModule } from '@angular/common';
@@ -18,28 +18,45 @@ import { ConfigurationService } from '@/services/configuration.service';
 import { SelectModule } from 'primeng/select';
 import { CustomValidators } from '@/common/validators/custom-validators';
 import { MultiSelectModule } from 'primeng/multiselect';
+import { PermissionDirective } from '@/directives/permission.directive';
+import { PermissionService } from '@/services/permission.service';
+import { Permission } from '@/enums/permission.enum';
+import { Subject, takeUntil } from 'rxjs';
 
 @Component({
     selector: 'app-activities',
-    imports: [MultiSelectModule, ReactiveFormsModule, SelectModule, TagModule, CommonModule, FormsModule, TableModule, ButtonModule, RippleModule, ToastModule, ToolbarModule, InputTextModule, DialogModule, InputIconModule, IconFieldModule, ConfirmDialogModule],
-
+    standalone: true,
+    imports: [
+        MultiSelectModule,
+        ReactiveFormsModule,
+        SelectModule,
+        TagModule,
+        CommonModule,
+        FormsModule,
+        TableModule,
+        ButtonModule,
+        RippleModule,
+        ToastModule,
+        ToolbarModule,
+        InputTextModule,
+        DialogModule,
+        InputIconModule,
+        IconFieldModule,
+        ConfirmDialogModule,
+        PermissionDirective
+    ],
     templateUrl: './activities.component.html',
     styleUrl: './activities.component.scss',
     providers: [MessageService, ConfirmationService]
 })
-export class ActivitiesComponent implements OnInit {
+export class ActivitiesComponent implements OnInit, OnDestroy {
     activityDialog: boolean = false;
     submitted: boolean = false;
     selectedActivities: any[] = [];
+
     status: any = [
-        {
-            id: 1,
-            name: 'Active'
-        },
-        {
-            id: 0,
-            name: 'Inactive'
-        }
+        { id: 1, name: 'Active' },
+        { id: 0, name: 'Inactive' }
     ];
 
     @ViewChild('dt') dt!: Table;
@@ -55,23 +72,50 @@ export class ActivitiesComponent implements OnInit {
     page = 1;
     rows = 10;
 
+    // Permission flags for UI
+    canCreate$: any;
+    canEdit$: any;
+    canDelete$: any;
+    canView$: any;
+    canExport$: any;
+
+    // Make Permission enum available in template
+    Permission = Permission;
+
+    private destroy$ = new Subject<void>();
+
     constructor(
         private messageService: MessageService,
         private confirmationService: ConfirmationService,
         private configurationService: ConfigurationService,
         private activatedRoute: ActivatedRoute,
-        private fb: FormBuilder
+        private fb: FormBuilder,
+        private permissionService: PermissionService
     ) {}
 
     ngOnInit() {
-        this.activities = this.activatedRoute.snapshot.data['activitiesResolver'][0]['data'];
-        this.sectors = this.activatedRoute.snapshot.data['activitiesResolver'][1]['data'];
+        this.canCreate$ = this.permissionService.hasPermission(Permission.CREATE_ACTIVITIES);
+        this.canEdit$ = this.permissionService.hasPermission(Permission.EDIT_ACTIVITIES);
+        this.canDelete$ = this.permissionService.hasPermission(Permission.DELETE_ACTIVITIES);
+        this.canView$ = this.permissionService.hasPermission(Permission.VIEW_ACTIVITIES);
+        this.canExport$ = this.permissionService.hasPermission(Permission.EXPORT_DATA_TALENT);
+        
+        const resolverData = this.activatedRoute.snapshot.data['activitiesResolver'];
+        this.activities = resolverData?.[0]?.data || [];
+        this.sectors = resolverData?.[1]?.data || [];
         this.exportCSVData();
         this.formBuild();
     }
 
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
+    }
+
     exportCSV() {
+        const original = this.dt.value;
         this.dt.exportCSV();
+        this.dt.value = original;
     }
 
     exportCSVData() {
@@ -98,31 +142,34 @@ export class ActivitiesComponent implements OnInit {
     loadActivities(event: any) {
         const page = event.first / event.rows + 1;
         const perPage = event.rows;
-        this.configurationService.getActivities(`?page=${page}&per_page=${perPage}`).subscribe({
-            next: (res) => {
-                this.activities = res.data;
-                this.totalRecords = res.total;
-                this.page = res.current_page;
-            },
-            error: (error) => {
-                console.log(error);
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: error.errors.message,
-                    life: 3000
-                });
-            }
-        });
+
+        this.configurationService
+            .getActivities(`?page=${page}&per_page=${perPage}`)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (res) => {
+                    this.activities = res.data;
+                    this.totalRecords = res.total;
+                    this.page = res.current_page;
+                },
+                error: (error) => {
+                    console.log(error);
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Error',
+                        detail: error.errors?.message || 'Failed to load activities',
+                        life: 3000
+                    });
+                }
+            });
     }
 
     formBuild(activity?: any) {
         this.activityForm = this.fb.group({
-            sectorId: [activity?.sectorId || [], [Validators.required]],
+            sectorId: [activity?.sectorId || '', [Validators.required]],
             name: [activity?.name || '', [Validators.required, Validators.maxLength(50), Validators.minLength(3), CustomValidators.alpha()]],
             nameAr: [activity?.nameAr || '', [Validators.required, Validators.maxLength(255), Validators.minLength(3), CustomValidators.arabic()]],
-            status: [activity?.status || '', [Validators.required, Validators.maxLength(1)]],
-            
+            status: [activity?.status || 1, [Validators.required]]
         });
     }
 
@@ -134,6 +181,7 @@ export class ActivitiesComponent implements OnInit {
     }
 
     editActivity(activity: any) {
+        console.log('Editing activity:', activity);
         this.formBuild(activity);
         this.activity = { ...activity };
         this.activityDialog = true;
@@ -145,17 +193,16 @@ export class ActivitiesComponent implements OnInit {
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                const deleteRequests = this.selectedActivities.map((cat) => this.configurationService.deleteActivity(cat.id));
+                const deleteRequests = this.selectedActivities.map((cat) => this.configurationService.deleteActivity(cat.id).toPromise());
 
-                // Run all delete requests
-                Promise.all(deleteRequests.map((req) => req.toPromise()))
+                Promise.all(deleteRequests)
                     .then(() => {
                         this.activities = this.activities.filter((val) => !this.selectedActivities.includes(val));
                         this.selectedActivities = [];
                         this.messageService.add({
                             severity: 'success',
                             summary: 'Successful',
-                            detail: 'activities Deleted',
+                            detail: 'Activities Deleted',
                             life: 3000
                         });
                     })
@@ -174,36 +221,46 @@ export class ActivitiesComponent implements OnInit {
 
     deleteActivity(activity: any) {
         this.confirmationService.confirm({
-            message: 'Are you sure you want to delete ' + activity.name + '?',
+            message: `Are you sure you want to delete ${activity.name}?`,
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                this.configurationService.deleteActivity(activity.id).subscribe({
-                    next: () => {
-                        this.activities = this.activities.filter((val) => val.id !== activity.id);
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Successful',
-                            detail: 'activity Deleted',
-                            life: 3000
-                        });
-                    },
-                    error: (error) => {
-                        console.log(error);
-                        this.messageService.add({
-                            severity: 'error',
-                            summary: 'Error',
-                            detail: error.errors.message,
-                            life: 3000
-                        });
-                    }
-                });
+                this.configurationService
+                    .deleteActivity(activity.id)
+                    .pipe(takeUntil(this.destroy$))
+                    .subscribe({
+                        next: () => {
+                            this.activities = this.activities.filter((val) => val.id !== activity.id);
+                            this.messageService.add({
+                                severity: 'success',
+                                summary: 'Successful',
+                                detail: 'Activity Deleted',
+                                life: 3000
+                            });
+                        },
+                        error: (error) => {
+                            console.log(error);
+                            const errorMessage = error.errors?.message || error.message || 'Failed to delete activity';
+                            this.messageService.add({
+                                severity: 'error',
+                                summary: 'Error',
+                                detail: errorMessage,
+                                life: 3000
+                            });
+                        }
+                    });
             }
         });
     }
 
     saveActivity() {
         this.submitted = true;
+
+        if (this.activityForm.invalid) {
+            this.markFormFieldsAsTouched();
+            return;
+        }
+
         const formValue = this.activityForm.value;
 
         const obj = {
@@ -215,58 +272,81 @@ export class ActivitiesComponent implements OnInit {
 
         if (this.activity.id) {
             // Update existing activity
-            this.configurationService.updateActivity(this.activity.id, obj).subscribe({
-                next: (res) => {
-                    const index = this.activities.findIndex((c) => c.id === this.activity.id);
-                    this.activities[index] = res;
-                    this.messageService.add({
-                        severity: 'success',
-                        summary: 'Successful',
-                        detail: 'activity Updated',
-                        life: 3000
-                    });
-                    this.activityDialog = false;
-                    this.activity = {};
-                },
-                error: (error) => {
-                    console.log(error);
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: error.errors.message,
-                        life: 3000
-                    });
-                }
-            });
+            this.configurationService
+                .updateActivity(this.activity.id, obj)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res) => {
+                        const index = this.activities.findIndex((c) => c.id === this.activity.id);
+                        if (index !== -1) {
+                            this.activities[index] = res;
+                        }
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'Successful',
+                            detail: 'Activity Updated',
+                            life: 3000
+                        });
+                        this.activityDialog = false;
+                        this.activity = {};
+                        if (this.dt) {
+                            this.dt.reset();
+                        }
+                    },
+                    error: (error) => {
+                        console.log(error);
+                        const errorMessage = error.errors?.message || error.message || 'Failed to update activity';
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: errorMessage,
+                            life: 3000
+                        });
+                    }
+                });
         } else {
             // Create new activity
-            this.configurationService.createActivity(obj).subscribe({
-                next: (res: any) => {
-                    this.activities.push(res);
-                    this.messageService.add({
-                        severity: 'success',
-                        summary: 'Successful',
-                        detail: 'activity Created',
-                        life: 3000
-                    });
-                    this.activityDialog = false;
-                    this.activity = {};
-                },
-                error: (error) => {
-                    console.log(error);
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: error.errors.message,
-                        life: 3000
-                    });
-                }
-            });
+            this.configurationService
+                .createActivity(obj)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res: any) => {
+                        this.activities.unshift(res);
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'Successful',
+                            detail: 'Activity Created',
+                            life: 3000
+                        });
+                        this.activityDialog = false;
+                        this.activity = {};
+                        if (this.dt) {
+                            this.dt.reset();
+                        }
+                    },
+                    error: (error) => {
+                        console.log(error);
+                        const errorMessage = error.errors?.message || error.message || 'Failed to create activity';
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: errorMessage,
+                            life: 3000
+                        });
+                    }
+                });
         }
+    }
+
+    private markFormFieldsAsTouched(): void {
+        Object.keys(this.activityForm.controls).forEach((key) => {
+            this.activityForm.get(key)?.markAsTouched();
+        });
     }
 
     hideDialog() {
         this.activityDialog = false;
         this.submitted = false;
+        this.activityForm?.reset();
     }
 }

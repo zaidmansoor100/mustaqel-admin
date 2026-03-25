@@ -1,20 +1,54 @@
+<!-- Toolbar with permission-based buttons -->
 <p-toolbar styleClass="mb-6">
     <p-toast></p-toast>
     <ng-template #start>
-        <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="openNew()" />
-        <p-button severity="secondary" label="Delete" icon="pi pi-trash" outlined (onClick)="deleteSelectedEntities()"
+        <!-- New button - only visible if user has CREATE permission -->
+        <p-button 
+            *appPermission="Permission.CREATE_ENTITIES"
+            label="New" 
+            icon="pi pi-plus" 
+            severity="secondary" 
+            class="mr-2" 
+            (onClick)="openNew()" />
+        
+        <!-- Delete button - only visible if user has DELETE permission -->
+        <p-button 
+            *appPermission="Permission.DELETE_ENTITIES"
+            severity="secondary" 
+            label="Delete" 
+            icon="pi pi-trash" 
+            outlined 
+            (onClick)="deleteSelectedEntities()"
             [disabled]="!selectedEntities || !selectedEntities.length" />
     </ng-template>
 
     <ng-template #end>
-        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+        <!-- Export button - only visible if user has EXPORT permission -->
+        <p-button 
+            *appPermission="Permission.EXPORT_DATA_TALENT"
+            label="Export" 
+            icon="pi pi-upload" 
+            severity="secondary" 
+            (onClick)="exportCSV()" />
     </ng-template>
 </p-toolbar>
 
-<p-table [value]="entities" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
-    (onLazyLoad)="loadEntities($event)" [globalFilterFields]="['name', 'nameAr', 'status']"
-    [tableStyle]="{ 'min-width': '75rem' }" [(selection)]="selectedEntities" [rowHover]="true" dataKey="id"
-    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entities" [showCurrentPageReport]="true"
+<!-- Entities Table -->
+<p-table 
+    #dt
+    [value]="entities" 
+    [lazy]="true" 
+    [paginator]="true" 
+    [rows]="10" 
+    [totalRecords]="totalRecords"
+    (onLazyLoad)="loadEntities($event)" 
+    [globalFilterFields]="['name', 'nameAr', 'status']"
+    [tableStyle]="{ 'min-width': '75rem' }" 
+    [(selection)]="selectedEntities" 
+    [rowHover]="true" 
+    dataKey="id"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entities" 
+    [showCurrentPageReport]="true"
     [rowsPerPageOptions]="[10, 20, 30]">
 
     <ng-template #caption>
@@ -29,74 +63,153 @@
 
     <ng-template #header>
         <tr>
-            <th><p-tableHeaderCheckbox /></th>
+            <!-- Checkbox column - only visible if user has DELETE permission -->
+            <th *appPermission="Permission.DELETE_ENTITIES">
+                <p-tableHeaderCheckbox />
+            </th>
             <th *ngFor="let col of cols" [pSortableColumn]="col.field">{{ col.header }}</th>
-            <th></th>
+            <!-- Actions column - only visible if user has EDIT or DELETE permission -->
+            <th *appPermission="[Permission.EDIT_ENTITIES, Permission.DELETE_ENTITIES]" appPermissionMode="any">Actions</th>
         </tr>
     </ng-template>
 
     <ng-template #body let-entity>
         <tr>
-            <td><p-tableCheckbox [value]="entity" /></td>
+            <!-- Checkbox - only visible if user has DELETE permission -->
+            <td *appPermission="Permission.DELETE_ENTITIES">
+                <p-tableCheckbox [value]="entity" />
+            </td>
             <td>{{ entity.id }}</td>
             <td>{{ entity.name }}</td>
             <td>{{ entity.nameAr }}</td>
             <td>
                 <ng-container *ngIf="entity.activities?.length > 0; else noAct">
-                    <p-tag *ngFor="let act of entity.activities" severity="info" class="mr-1 mb-1" [value]="act.name">
+                    <p-tag 
+                        *ngFor="let act of entity.activities" 
+                        severity="info" 
+                        class="mr-1 mb-1" 
+                        [value]="act.name">
                     </p-tag>
                 </ng-container>
                 <ng-template #noAct>
-                    <span>No Activities</span>
+                    <span class="text-muted">No Activities</span>
                 </ng-template>
             </td>
             <td>{{ entity.created_at | date:'short' }}</td>
             <td>{{ entity.updated_at | date:'short' }}</td>
             <td>
-                <p-tag [severity]="entity.status === 1 ? 'success' : 'danger'"
+                <p-tag 
+                    [severity]="entity.status === 1 ? 'success' : 'danger'"
                     [value]="entity.status === 1 ? 'Active' : 'Inactive'" />
             </td>
-            <td>
-                <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true" 
+            <!-- Action buttons - only visible based on permissions -->
+            <td *appPermission="[Permission.EDIT_ENTITIES, Permission.DELETE_ENTITIES]" appPermissionMode="any">
+                <!-- Edit button - only visible if user has EDIT permission -->
+                <p-button 
+                    *appPermission="Permission.EDIT_ENTITIES"
+                    icon="pi pi-pencil" 
+                    class="mr-2" 
+                    [rounded]="true" 
+                    [outlined]="true" 
                     (click)="editEntity(entity)" />
-                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true" 
+                
+                <!-- Delete button - only visible if user has DELETE permission -->
+                <p-button 
+                    *appPermission="Permission.DELETE_ENTITIES"
+                    icon="pi pi-trash" 
+                    severity="danger" 
+                    [rounded]="true" 
+                    [outlined]="true" 
                     (click)="deleteEntity(entity)" />
+            </td>
+        </tr>
+    </ng-template>
+    
+    <!-- Empty state message -->
+    <ng-template #emptymessage>
+        <tr>
+            <td [attr.colspan]="(canDelete$ | async) ? 9 : 8" class="text-center">
+                No entities found.
             </td>
         </tr>
     </ng-template>
 </p-table>
 
-<p-dialog [(visible)]="entityDialog" [style]="{ width: '600px' }" header="entity Details" [modal]="true">
+<!-- Entity Dialog -->
+<p-dialog 
+    [(visible)]="entityDialog" 
+    [style]="{ width: '600px' }" 
+    header="Entity Details" 
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false">
+
     <ng-template #content>
         <div class="grid grid-cols-2 gap-6" [formGroup]="entityForm">
-            <div class="mb-4">
-                <label for="activity" class="block font-bold mb-3">Select Activities</label>
-                <p-multiselect appendTo="body" [options]="activities" [filter]="true" optionLabel="name"
-                    optionValue="id" placeholder="Activities" [maxSelectedLabels]="3" class="w-full"
+            <div class="mb-4 col-span-2">
+                <label for="activity" class="block font-bold mb-3">Select Activities <span class="text-red-500">*</span></label>
+                <p-multiselect 
+                    appendTo="body" 
+                    [options]="activities" 
+                    [filter]="true" 
+                    optionLabel="name"
+                    optionValue="id" 
+                    placeholder="Select Activities" 
+                    [maxSelectedLabels]="3" 
+                    class="w-full"
                     formControlName="activityIds" />
+                <small class="text-red-500" *ngIf="entityForm.get('activityIds')?.invalid && entityForm.get('activityIds')?.touched">
+                    At least one activity is required
+                </small>
             </div>
 
-            <div class="mb-4">
-                <label for="status" class="block font-bold mb-3">Status</label>
-                <p-select appendTo="body" [options]="status" optionLabel="name" optionValue="id" placeholder="Status"
-                    class="w-full" required formControlName="status" />
-            </div>
-
-            <div class="mb-4">
-                <label for="name" class="block font-bold mb-3">Name (English)</label>
+            <div class="mb-4 col-span-2">
+                <label for="name" class="block font-bold mb-3">Name (English) <span class="text-red-500">*</span></label>
                 <input class="w-full" type="text" pInputText id="name" required autofocus formControlName="name" />
+                <small class="text-red-500" *ngIf="entityForm.get('name')?.invalid && entityForm.get('name')?.touched">
+                    <span *ngIf="entityForm.get('name')?.hasError('required')">Name is required</span>
+                    <span *ngIf="entityForm.get('name')?.hasError('minlength')">Name must be at least 3 characters</span>
+                    <span *ngIf="entityForm.get('name')?.hasError('maxlength')">Name cannot exceed 50 characters</span>
+                    <span *ngIf="entityForm.get('name')?.hasError('alpha')">Only letters are allowed</span>
+                </small>
             </div>
 
-            <div class="mb-4">
-                <label for="nameAr" class="block font-bold mb-3">Name (Arabic)</label>
+            <div class="mb-4 col-span-2">
+                <label for="nameAr" class="block font-bold mb-3">Name (Arabic) <span class="text-red-500">*</span></label>
                 <input class="w-full" type="text" pInputText id="nameAr" required formControlName="nameAr" />
+                <small class="text-red-500" *ngIf="entityForm.get('nameAr')?.invalid && entityForm.get('nameAr')?.touched">
+                    <span *ngIf="entityForm.get('nameAr')?.hasError('required')">Arabic name is required</span>
+                    <span *ngIf="entityForm.get('nameAr')?.hasError('minlength')">Name must be at least 3 characters</span>
+                    <span *ngIf="entityForm.get('nameAr')?.hasError('maxlength')">Name cannot exceed 255 characters</span>
+                    <span *ngIf="entityForm.get('nameAr')?.hasError('arabic')">Only Arabic characters are allowed</span>
+                </small>
+            </div>
+
+            <div class="mb-4 col-span-2">
+                <label for="status" class="block font-bold mb-3">Status <span class="text-red-500">*</span></label>
+                <p-select 
+                    appendTo="body" 
+                    [options]="status" 
+                    optionLabel="name" 
+                    optionValue="id" 
+                    placeholder="Select Status"
+                    class="w-full" 
+                    required 
+                    formControlName="status" />
+                <small class="text-red-500" *ngIf="entityForm.get('status')?.invalid && entityForm.get('status')?.touched">
+                    Status is required
+                </small>
             </div>
         </div>
     </ng-template>
 
     <ng-template #footer>
         <p-button label="Cancel" icon="pi pi-times" text (click)="hideDialog()" />
-        <p-button label="Save" icon="pi pi-check" [disabled]="entityForm.invalid" (click)="saveEntity()" />
+        <p-button 
+            label="Save" 
+            icon="pi pi-check" 
+            [disabled]="entityForm.invalid" 
+            (click)="saveEntity()" />
     </ng-template>
 </p-dialog>
 

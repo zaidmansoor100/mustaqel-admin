@@ -1,24 +1,48 @@
+<!-- Toolbar with permission-based buttons -->
 <p-toolbar styleClass="mb-6">
     <p-toast></p-toast>
     <ng-template #start>
-        <!-- <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="openNew()" /> -->
-        <p-button severity="secondary" label="Delete" icon="pi pi-trash" outlined (onClick)="deleteSelectedUsers()"
+        <!-- New button - only visible if user has CREATE permission -->
+        <p-button 
+            *appPermission="Permission.CREATE_APPLICANT_USERS"
+            label="New" 
+            icon="pi pi-plus" 
+            severity="secondary" 
+            class="mr-2" 
+            (onClick)="openNew()" />
+        
+        <!-- Delete button - only visible if user has DELETE permission -->
+        <p-button 
+            *appPermission="Permission.DELETE_APPLICANT_USERS"
+            severity="secondary" 
+            label="Delete" 
+            icon="pi pi-trash" 
+            outlined 
+            (onClick)="deleteSelectedUsers()"
             [disabled]="!selectedUsers || !selectedUsers.length" />
     </ng-template>
 
     <ng-template #end>
-        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+        <!-- Export button - only visible if user has EXPORT permission -->
+        <p-button 
+            *appPermission="Permission.EXPORT_DATA_TALENT"
+            label="Export" 
+            icon="pi pi-upload" 
+            severity="secondary" 
+            (onClick)="exportCSV()" />
     </ng-template>
 </p-toolbar>
 
-<p-table #dt
+<!-- Users Table -->
+<p-table 
+    #dt
     [value]="users"
     [lazy]="true"
     [paginator]="true"
     [rows]="10"
     [totalRecords]="totalRecords"
     (onLazyLoad)="loadUsers($event)"
-    [globalFilterFields]="['name', 'nameAr', 'status']"
+    [globalFilterFields]="['name', 'nameAr', 'email', 'status']"
     [tableStyle]="{ 'min-width': '75rem' }"
     [(selection)]="selectedUsers"
     [rowHover]="true"
@@ -29,7 +53,7 @@
 
     <ng-template #caption>
         <div class="flex items-center justify-between">
-            <h5 class="m-0">Manage Users</h5>
+            <h5 class="m-0">Manage Applicant Users</h5>
             <p-iconfield>
                 <p-inputicon styleClass="pi pi-search" />
                 <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search..." />
@@ -39,15 +63,22 @@
 
     <ng-template #header>
         <tr>
-            <th><p-tableHeaderCheckbox /></th>
+            <!-- Checkbox column - only visible if user has DELETE permission -->
+            <th *appPermission="Permission.DELETE_APPLICANT_USERS">
+                <p-tableHeaderCheckbox />
+            </th>
             <th *ngFor="let col of cols" [pSortableColumn]="col.field">{{ col.header }}</th>
-            <th></th>
+            <!-- Actions column - only visible if user has EDIT or DELETE permission -->
+            <th *appPermission="[Permission.EDIT_APPLICANT_USERS, Permission.DELETE_APPLICANT_USERS]" appPermissionMode="any">Actions</th>
         </tr>
     </ng-template>
 
     <ng-template #body let-user>
         <tr>
-            <td><p-tableCheckbox [value]="user" /></td>
+            <!-- Checkbox - only visible if user has DELETE permission -->
+            <td *appPermission="Permission.DELETE_APPLICANT_USERS">
+                <p-tableCheckbox [value]="user" />
+            </td>
             <td>{{ user.id }}</td>
             <td>{{ user.name }}</td>
             <td>{{ user.nameAr }}</td>
@@ -55,43 +86,117 @@
             <td>{{ user.created_at | date:'short' }}</td>
             <td>{{ user.updated_at | date:'short' }}</td>
             <td>
-                <p-tag [severity]="user.status === 'active' ? 'success' : 'danger'"
-                    [value]="user.status| uppercase" />
+                <p-tag 
+                    [severity]="user.status === 1 ? 'success' : 'danger'"
+                    [value]="user.status === 1 ? 'ACTIVE' : 'INACTIVE'" />
             </td>
-            <td>
-                <!-- <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true"
-                    (click)="editUser(user)" /> -->
-                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
+            <!-- Action buttons - only visible based on permissions -->
+            <td *appPermission="[Permission.EDIT_APPLICANT_USERS, Permission.DELETE_APPLICANT_USERS]" appPermissionMode="any">
+                <!-- Edit button - only visible if user has EDIT permission -->
+                <p-button 
+                    *appPermission="Permission.EDIT_APPLICANT_USERS"
+                    icon="pi pi-pencil" 
+                    class="mr-2" 
+                    [rounded]="true" 
+                    [outlined]="true"
+                    (click)="editUser(user)" />
+                
+                <!-- Delete button - only visible if user has DELETE permission -->
+                <p-button 
+                    *appPermission="Permission.DELETE_APPLICANT_USERS"
+                    icon="pi pi-trash" 
+                    severity="danger" 
+                    [rounded]="true" 
+                    [outlined]="true"
                     (click)="deleteUser(user)" />
+            </td>
+        </tr>
+    </ng-template>
+    
+    <!-- Empty state message -->
+    <ng-template #emptymessage>
+        <tr>
+            <td [attr.colspan]="(canDelete$ | async) ? 9 : 8" class="text-center">
+                No applicant users found.
             </td>
         </tr>
     </ng-template>
 </p-table>
 
-<p-dialog [(visible)]="userDialog" [style]="{ width: '600px' }" header="User Details" [modal]="true">
+<!-- User Dialog -->
+<p-dialog 
+    [(visible)]="userDialog" 
+    [style]="{ width: '600px' }" 
+    header="User Details" 
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false">
+    
     <ng-template #content>
         <div class="grid grid-cols-2 gap-6" [formGroup]="userForm">
-            <div class="mb-4">
-                <label for="name" class="block font-bold mb-3">Name (English)</label>
-                <input class="w-full"  type="text" pInputText id="name" required autofocus formControlName="name" />
+            <div class="mb-4 col-span-2">
+                <label for="name" class="block font-bold mb-3">Name (English) <span class="text-red-500">*</span></label>
+                <input 
+                    class="w-full" 
+                    type="text" 
+                    pInputText 
+                    id="name" 
+                    required 
+                    autofocus 
+                    formControlName="name" />
+                <small class="text-red-500 block mt-1" 
+                    *ngIf="userForm.get('name')?.invalid && userForm.get('name')?.touched">
+                    <span *ngIf="userForm.get('name')?.hasError('required')">Name is required</span>
+                    <span *ngIf="userForm.get('name')?.hasError('minlength')">Name must be at least 3 characters</span>
+                    <span *ngIf="userForm.get('name')?.hasError('maxlength')">Name cannot exceed 50 characters</span>
+                    <span *ngIf="userForm.get('name')?.hasError('alpha')">Only letters are allowed</span>
+                </small>
             </div>
 
-            <div class="mb-4">
-                <label for="nameAr" class="block font-bold mb-3">Name (Arabic)</label>
-                <input class="w-full"  type="text" pInputText id="nameAr" required  formControlName="nameAr"/>
+            <div class="mb-4 col-span-2">
+                <label for="nameAr" class="block font-bold mb-3">Name (Arabic) <span class="text-red-500">*</span></label>
+                <input 
+                    class="w-full" 
+                    type="text" 
+                    pInputText 
+                    id="nameAr" 
+                    required 
+                    formControlName="nameAr"/>
+                <small class="text-red-500 block mt-1" 
+                    *ngIf="userForm.get('nameAr')?.invalid && userForm.get('nameAr')?.touched">
+                    <span *ngIf="userForm.get('nameAr')?.hasError('required')">Arabic name is required</span>
+                    <span *ngIf="userForm.get('nameAr')?.hasError('minlength')">Name must be at least 3 characters</span>
+                    <span *ngIf="userForm.get('nameAr')?.hasError('maxlength')">Name cannot exceed 255 characters</span>
+                    <span *ngIf="userForm.get('nameAr')?.hasError('arabic')">Only Arabic characters are allowed</span>
+                </small>
             </div>
 
-            <div class="mb-4">
-                <label for="status" class="block font-bold mb-3">Status</label>
-                <p-select appendTo="body" [options]="status" optionLabel="name" optionValue="id" 
-                    placeholder="Status" class="w-full" required  formControlName="status"/>
+            <div class="mb-4 col-span-2">
+                <label for="status" class="block font-bold mb-3">Status <span class="text-red-500">*</span></label>
+                <p-select 
+                    appendTo="body" 
+                    [options]="status" 
+                    optionLabel="name" 
+                    optionValue="id" 
+                    placeholder="Select Status" 
+                    class="w-full" 
+                    required  
+                    formControlName="status"/>
+                <small class="text-red-500 block mt-1" 
+                    *ngIf="userForm.get('status')?.invalid && userForm.get('status')?.touched">
+                    Status is required
+                </small>
             </div>
         </div>
     </ng-template>
 
     <ng-template #footer>
         <p-button label="Cancel" icon="pi pi-times" text (click)="hideDialog()" />
-        <p-button label="Save" icon="pi pi-check" [disabled]="userForm.invalid" (click)="saveUser()" />
+        <p-button 
+            label="Save" 
+            icon="pi pi-check" 
+            [disabled]="userForm.invalid" 
+            (click)="saveUser()" />
     </ng-template>
 </p-dialog>
 

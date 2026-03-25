@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy } from '@angular/core';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { Table, TableModule } from 'primeng/table';
 import { CommonModule } from '@angular/common';
@@ -23,9 +23,14 @@ import { ConfigurationService } from '@/services/configuration.service';
 import { ActivatedRoute } from '@angular/router';
 import { CustomValidators } from '@/common/validators/custom-validators';
 import { MultiSelectModule } from 'primeng/multiselect';
+import { PermissionDirective } from '@/directives/permission.directive';
+import { PermissionService } from '@/services/permission.service';
+import { Permission } from '@/enums/permission.enum';
+import { Subject, takeUntil } from 'rxjs';
 
 @Component({
     selector: 'app-authorities',
+    standalone: true,
     imports: [
         CommonModule,
         TableModule,
@@ -46,26 +51,23 @@ import { MultiSelectModule } from 'primeng/multiselect';
         IconFieldModule,
         ConfirmDialogModule,
         ReactiveFormsModule,
-        MultiSelectModule
+        MultiSelectModule,
+        PermissionDirective
     ],
     templateUrl: './authorities.component.html',
     styleUrl: './authorities.component.scss',
     providers: [MessageService, ProductService, ConfirmationService]
 })
-export class AuthoritiesComponent implements OnInit {
+export class AuthoritiesComponent implements OnInit, OnDestroy {
     entityDialog: boolean = false;
     submitted: boolean = false;
     selectedEntities: any[] = [];
+
     status: any = [
-        {
-            id: 1,
-            name: 'Active'
-        },
-        {
-            id: 0,
-            name: 'Inactive'
-        }
+        { id: 1, name: 'Active' },
+        { id: 0, name: 'Inactive' }
     ];
+
     entities: any[] = [];
     activities: any[] = [];
     entity: any = {};
@@ -80,19 +82,43 @@ export class AuthoritiesComponent implements OnInit {
     page = 1;
     rows = 10;
 
+    // Permission flags for UI
+    canCreate$ : any;
+    canEdit$ : any;   
+    canDelete$ : any;
+    canView$ : any;    
+    canExport$ : any;
+
+    // Make Permission enum available in template
+    Permission = Permission;
+
+    private destroy$ = new Subject<void>();
+
     constructor(
         private messageService: MessageService,
         private confirmationService: ConfirmationService,
         private configurationService: ConfigurationService,
         private activatedRoute: ActivatedRoute,
-        private fb: FormBuilder
+        private fb: FormBuilder,
+        private permissionService: PermissionService
     ) {}
 
     ngOnInit() {
-        this.entities = this.activatedRoute.snapshot.data['entityResolver'][0]['data'];
-        this.activities = this.activatedRoute.snapshot.data['entityResolver'][1]['data'];
+        this.canCreate$ = this.permissionService.hasPermission(Permission.CREATE_ENTITIES);
+        this.canEdit$ = this.permissionService.hasPermission(Permission.EDIT_ENTITIES);
+        this.canDelete$ = this.permissionService.hasPermission(Permission.DELETE_ENTITIES);
+        this.canView$ = this.permissionService.hasPermission(Permission.VIEW_ENTITIES);
+        this.canExport$ = this.permissionService.hasPermission(Permission.EXPORT_DATA_TALENT);
+        const resolverData = this.activatedRoute.snapshot.data['entityResolver'];
+        this.entities = resolverData?.[0]?.data || [];
+        this.activities = resolverData?.[1]?.data || [];
         this.exportCSVData();
         this.formBuild();
+    }
+
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
     }
 
     exportCSV() {
@@ -105,7 +131,7 @@ export class AuthoritiesComponent implements OnInit {
         const original = this.dt.value;
         this.dt.value = formatted;
         this.dt.exportCSV();
-        this.dt.value = original; // restore original
+        this.dt.value = original;
     }
 
     exportCSVData() {
@@ -132,31 +158,40 @@ export class AuthoritiesComponent implements OnInit {
     loadEntities(event: any) {
         const page = event.first / event.rows + 1;
         const perPage = event.rows;
-        this.configurationService.getEntities(`?page=${page}&per_page=${perPage}`).subscribe({
-            next: (res) => {
-                this.entities = res.data;
-                this.totalRecords = res.total;
-                this.page = res.current_page;
-            },
-            error: (error: any) => {
-                console.log(error);
 
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'Failed to load entities',
-                    life: 3000
-                });
-            }
-        });
+        this.configurationService
+            .getEntities(`?page=${page}&per_page=${perPage}`)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (res) => {
+                    this.entities = res.data;
+                    this.totalRecords = res.total;
+                    this.page = res.current_page;
+                },
+                error: (error: any) => {
+                    console.log(error);
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Error',
+                        detail: 'Failed to load entities',
+                        life: 3000
+                    });
+                }
+            });
     }
 
     formBuild(entity?: any) {
+        // Extract activity IDs from the entity's activities
+        let activityIds: number[] = [];
+        if (entity?.activities && Array.isArray(entity.activities)) {
+            activityIds = entity.activities.map((activity: any) => activity.id);
+        }
+
         this.entityForm = this.fb.group({
-            activityIds: [entity?.activityIds || [], [Validators.required]],
+            activityIds: [activityIds || [], [Validators.required]],
             name: [entity?.name || '', [Validators.required, Validators.maxLength(50), Validators.minLength(3), CustomValidators.alpha()]],
             nameAr: [entity?.nameAr || '', [Validators.required, Validators.maxLength(255), Validators.minLength(3), CustomValidators.arabic()]],
-            status: [entity?.status || '', [Validators.required, Validators.maxLength(1)]]
+            status: [entity?.status || 1, [Validators.required]]
         });
     }
 
@@ -168,6 +203,7 @@ export class AuthoritiesComponent implements OnInit {
     }
 
     editEntity(entity: any) {
+        console.log('Editing entity:', entity);
         this.formBuild(entity);
         this.entity = { ...entity };
         this.entityDialog = true;
@@ -179,10 +215,9 @@ export class AuthoritiesComponent implements OnInit {
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                const deleteRequests = this.selectedEntities.map((cat: any) => this.configurationService.deleteEntity(cat.id));
+                const deleteRequests = this.selectedEntities.map((cat: any) => this.configurationService.deleteEntity(cat.id).toPromise());
 
-                // Run all delete requests
-                Promise.all(deleteRequests.map((req: any) => req.toPromise()))
+                Promise.all(deleteRequests)
                     .then(() => {
                         this.entities = this.entities.filter((val: any) => !this.selectedEntities.includes(val));
                         this.selectedEntities = [];
@@ -208,36 +243,46 @@ export class AuthoritiesComponent implements OnInit {
 
     deleteEntity(entity: any) {
         this.confirmationService.confirm({
-            message: 'Are you sure you want to delete ' + entity.name + '?',
+            message: `Are you sure you want to delete ${entity.name}?`,
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                this.configurationService.deleteEntity(entity.id).subscribe({
-                    next: () => {
-                        this.entities = this.entities.filter((val: any) => val.id !== entity.id);
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Successful',
-                            detail: 'Entity Deleted',
-                            life: 3000
-                        });
-                    },
-                    error: (error) => {
-                        console.log(error);
-                        this.messageService.add({
-                            severity: 'error',
-                            summary: 'Error',
-                            detail: error.error.message,
-                            life: 3000
-                        });
-                    }
-                });
+                this.configurationService
+                    .deleteEntity(entity.id)
+                    .pipe(takeUntil(this.destroy$))
+                    .subscribe({
+                        next: () => {
+                            this.entities = this.entities.filter((val: any) => val.id !== entity.id);
+                            this.messageService.add({
+                                severity: 'success',
+                                summary: 'Successful',
+                                detail: 'Entity Deleted',
+                                life: 3000
+                            });
+                        },
+                        error: (error) => {
+                            console.log(error);
+                            const errorMessage = error.error?.message || error.message || 'Failed to delete entity';
+                            this.messageService.add({
+                                severity: 'error',
+                                summary: 'Error',
+                                detail: errorMessage,
+                                life: 3000
+                            });
+                        }
+                    });
             }
         });
     }
 
     saveEntity() {
         this.submitted = true;
+
+        if (this.entityForm.invalid) {
+            this.markFormFieldsAsTouched();
+            return;
+        }
+
         const formValue = this.entityForm.value;
 
         const obj = {
@@ -249,58 +294,81 @@ export class AuthoritiesComponent implements OnInit {
 
         if (this.entity.id) {
             // Update existing entity
-            this.configurationService.updateEntity(this.entity.id, obj).subscribe({
-                next: (res) => {
-                    const index = this.entities.findIndex((c) => c.id === this.entity.id);
-                    this.entities[index] = res;
-                    this.messageService.add({
-                        severity: 'success',
-                        summary: 'Successful',
-                        detail: 'Entity Updated',
-                        life: 3000
-                    });
-                    this.entityDialog = false;
-                    this.entity = {};
-                },
-                error: (error) => {
-                    console.log(error);
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: error.error.message,
-                        life: 3000
-                    });
-                }
-            });
+            this.configurationService
+                .updateEntity(this.entity.id, obj)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res) => {
+                        const index = this.entities.findIndex((c) => c.id === this.entity.id);
+                        if (index !== -1) {
+                            this.entities[index] = res;
+                        }
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'Successful',
+                            detail: 'Entity Updated',
+                            life: 3000
+                        });
+                        this.entityDialog = false;
+                        this.entity = {};
+                        if (this.dt) {
+                            this.dt.reset();
+                        }
+                    },
+                    error: (error) => {
+                        console.log(error);
+                        const errorMessage = error.error?.message || error.message || 'Failed to update entity';
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: errorMessage,
+                            life: 3000
+                        });
+                    }
+                });
         } else {
             // Create new entity
-            this.configurationService.createEntity(obj).subscribe({
-                next: (res) => {
-                    this.entities.push(res);
-                    this.messageService.add({
-                        severity: 'success',
-                        summary: 'Successful',
-                        detail: 'Entity Created',
-                        life: 3000
-                    });
-                    this.entityDialog = false;
-                    this.entity = {};
-                },
-                error: (error) => {
-                    console.log(error.error.message);
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: error.error.message,
-                        life: 3000
-                    });
-                }
-            });
+            this.configurationService
+                .createEntity(obj)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res) => {
+                        this.entities.unshift(res);
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'Successful',
+                            detail: 'Entity Created',
+                            life: 3000
+                        });
+                        this.entityDialog = false;
+                        this.entity = {};
+                        if (this.dt) {
+                            this.dt.reset();
+                        }
+                    },
+                    error: (error) => {
+                        console.log(error);
+                        const errorMessage = error.error?.message || error.message || 'Failed to create entity';
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: errorMessage,
+                            life: 3000
+                        });
+                    }
+                });
         }
+    }
+
+    private markFormFieldsAsTouched(): void {
+        Object.keys(this.entityForm.controls).forEach((key) => {
+            this.entityForm.get(key)?.markAsTouched();
+        });
     }
 
     hideDialog() {
         this.entityDialog = false;
         this.submitted = false;
+        this.entityForm?.reset();
     }
 }

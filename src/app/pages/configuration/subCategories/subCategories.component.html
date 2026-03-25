@@ -17,7 +17,7 @@
     [paginator]="true"
     [rows]="10"
     [totalRecords]="totalRecords"
-    (onLazyLoad)="loadCategories($event)"
+    (onLazyLoad)="loadSubCategories($event)"
     [globalFilterFields]="['name', 'nameAr', 'status']"
     [tableStyle]="{ 'min-width': '75rem' }"
     [(selection)]="selectedSubCategories"

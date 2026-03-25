@@ -1,20 +1,29 @@
+<!-- Toolbar with permission-based buttons -->
 <p-toolbar styleClass="mb-6">
     <ng-template #start>
-        <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="openNew()" />
-        <p-button severity="secondary" label="Delete" icon="pi pi-trash" outlined (onClick)="deleteSelectedSubActivities()"
+        <!-- New button - only visible if user has CREATE permission -->
+        <p-button *appPermission="Permission.CREATE_SUB_ACTIVITIES" label="New" icon="pi pi-plus" severity="secondary"
+            class="mr-2" (onClick)="openNew()" />
+
+        <!-- Delete button - only visible if user has DELETE permission -->
+        <p-button *appPermission="Permission.DELETE_SUB_ACTIVITIES" severity="secondary" label="Delete"
+            icon="pi pi-trash" outlined (onClick)="deleteSelectedSubActivities()"
             [disabled]="!selectedSubActivities || !selectedSubActivities.length" />
     </ng-template>
 
     <ng-template #end>
-        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+        <!-- Export button - only visible if user has EXPORT permission -->
+        <p-button *appPermission="Permission.EXPORT_DATA_TALENT" label="Export" icon="pi pi-upload" severity="secondary"
+            (onClick)="exportCSV()" />
     </ng-template>
 </p-toolbar>
 
-<p-table  #dt [value]="subActivities" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
+<!-- Sub Activities Table -->
+<p-table #dt [value]="subActivities" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
     (onLazyLoad)="loadSubActivities($event)" [globalFilterFields]="['name', 'nameAr', 'status']"
     [tableStyle]="{ 'min-width': '75rem' }" [(selection)]="selectedSubActivities" [rowHover]="true" dataKey="id"
-    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} subActivities" [showCurrentPageReport]="true"
-    [rowsPerPageOptions]="[10, 20, 30]">
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} sub activities"
+    [showCurrentPageReport]="true" [rowsPerPageOptions]="[10, 20, 30]">
 
     <ng-template #caption>
         <div class="flex items-center justify-between">
@@ -28,15 +37,23 @@
 
     <ng-template #header>
         <tr>
-            <th><p-tableHeaderCheckbox /></th>
+            <!-- Checkbox column - only visible if user has DELETE permission -->
+            <th *appPermission="Permission.DELETE_SUB_ACTIVITIES">
+                <p-tableHeaderCheckbox />
+            </th>
             <th *ngFor="let col of cols" [pSortableColumn]="col.field">{{ col.header }}</th>
-            <th></th>
+            <!-- Actions column - only visible if user has EDIT or DELETE permission -->
+            <th *appPermission="[Permission.EDIT_SUB_ACTIVITIES, Permission.DELETE_SUB_ACTIVITIES]"
+                appPermissionMode="any">Actions</th>
         </tr>
     </ng-template>
 
     <ng-template #body let-subActivity>
         <tr>
-            <td><p-tableCheckbox [value]="subActivity" /></td>
+            <!-- Checkbox - only visible if user has DELETE permission -->
+            <td *appPermission="Permission.DELETE_SUB_ACTIVITIES">
+                <p-tableCheckbox [value]="subActivity" />
+            </td>
             <td>{{ subActivity.id }}</td>
             <td>{{ subActivity.name }}</td>
             <td>{{ subActivity.nameAr }}</td>
@@ -49,46 +66,94 @@
                 <p-tag [severity]="subActivity.status === 1 ? 'success' : 'danger'"
                     [value]="subActivity.status === 1 ? 'Active' : 'Inactive'" />
             </td>
-            <td>
-                <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true"
-                    (click)="editSubActivity(subActivity)" />
-                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
-                    (click)="deleteSubActivity(subActivity)" />
+            <!-- Action buttons - only visible based on permissions -->
+            <td *appPermission="[Permission.EDIT_SUB_ACTIVITIES, Permission.DELETE_SUB_ACTIVITIES]"
+                appPermissionMode="any">
+                <!-- Edit button - only visible if user has EDIT permission -->
+                <p-button *appPermission="Permission.EDIT_SUB_ACTIVITIES" icon="pi pi-pencil" class="mr-2"
+                    [rounded]="true" [outlined]="true" (click)="editSubActivity(subActivity)" />
+
+                <!-- Delete button - only visible if user has DELETE permission -->
+                <p-button *appPermission="Permission.DELETE_SUB_ACTIVITIES" icon="pi pi-trash" severity="danger"
+                    [rounded]="true" [outlined]="true" (click)="deleteSubActivity(subActivity)" />
+            </td>
+        </tr>
+    </ng-template>
+
+    <!-- Empty state message -->
+    <ng-template #emptymessage>
+        <tr>
+            <td [attr.colspan]="(canDelete$ | async) ? 9 : 8" class="text-center">
+                No sub activities found.
             </td>
         </tr>
     </ng-template>
 </p-table>
 
-<p-dialog [(visible)]="subActivityDialog" [style]="{ width: '600px' }" header="subActivity Details" [modal]="true">
+<!-- Sub Activity Dialog -->
+<p-dialog [(visible)]="subActivityDialog" [style]="{ width: '600px' }" header="Sub Activity Details" [modal]="true"
+    [draggable]="false" [resizable]="false">
+
     <ng-template #content>
         <div class="grid grid-cols-2 gap-6" [formGroup]="subActivityForm">
-            <div class="mb-4">
-                <label for="activity" class="block font-bold mb-3">Select Activity</label>
-                <p-select appendTo="body" [options]="activities" optionLabel="name" optionValue="id" placeholder="Activities"
-                    [filter]="true" class="w-full" required formControlName="activityId" />
+            <div class="mb-4 col-span-2">
+                <label for="activity" class="block font-bold mb-3">Select Activity <span
+                        class="text-red-500">*</span></label>
+                <p-select appendTo="body" [options]="activities" optionLabel="name" optionValue="id"
+                    placeholder="Select Activity" [filter]="true" class="w-full" required
+                    formControlName="activityId" />
+                <small class="text-red-500"
+                    *ngIf="subActivityForm.get('activityId')?.invalid && subActivityForm.get('activityId')?.touched">
+                    Activity is required
+                </small>
             </div>
 
-            <div class="mb-4">
-                <label for="name" class="block font-bold mb-3">Name (English)</label>
-                <input class="w-full"  type="text" pInputText id="name" required autofocus formControlName="name" />
+            <div class="mb-4 col-span-2">
+                <label for="name" class="block font-bold mb-3">Name (English) <span
+                        class="text-red-500">*</span></label>
+                <input class="w-full" type="text" pInputText id="name" required autofocus formControlName="name" />
+                <small class="text-red-500"
+                    *ngIf="subActivityForm.get('name')?.invalid && subActivityForm.get('name')?.touched">
+                    <span *ngIf="subActivityForm.get('name')?.hasError('required')">Name is required</span>
+                    <span *ngIf="subActivityForm.get('name')?.hasError('minlength')">Name must be at least 3
+                        characters</span>
+                    <span *ngIf="subActivityForm.get('name')?.hasError('maxlength')">Name cannot exceed 50
+                        characters</span>
+                    <span *ngIf="subActivityForm.get('name')?.hasError('alpha')">Only letters are allowed</span>
+                </small>
             </div>
 
-            <div class="mb-4">
-                <label for="nameAr" class="block font-bold mb-3">Name (Arabic)</label>
-                <input class="w-full"  type="text" pInputText id="nameAr" required  formControlName="nameAr"/>
+            <div class="mb-4 col-span-2">
+                <label for="nameAr" class="block font-bold mb-3">Name (Arabic) <span
+                        class="text-red-500">*</span></label>
+                <input class="w-full" type="text" pInputText id="nameAr" required formControlName="nameAr" />
+                <small class="text-red-500"
+                    *ngIf="subActivityForm.get('nameAr')?.invalid && subActivityForm.get('nameAr')?.touched">
+                    <span *ngIf="subActivityForm.get('nameAr')?.hasError('required')">Arabic name is required</span>
+                    <span *ngIf="subActivityForm.get('nameAr')?.hasError('minlength')">Name must be at least 3
+                        characters</span>
+                    <span *ngIf="subActivityForm.get('nameAr')?.hasError('maxlength')">Name cannot exceed 255
+                        characters</span>
+                    <span *ngIf="subActivityForm.get('nameAr')?.hasError('arabic')">Only Arabic characters are
+                        allowed</span>
+                </small>
             </div>
 
-            <div class="mb-4">
-                <label for="status" class="block font-bold mb-3">Status</label>
-                <p-select appendTo="body" [options]="status" optionLabel="name" optionValue="id" 
-                    placeholder="Status" class="w-full" required  formControlName="status"/>
+            <div class="mb-4 col-span-2">
+                <label for="status" class="block font-bold mb-3">Status <span class="text-red-500">*</span></label>
+                <p-select appendTo="body" [options]="status" optionLabel="name" optionValue="id"
+                    placeholder="Select Status" class="w-full" required formControlName="status" />
+                <small class="text-red-500"
+                    *ngIf="subActivityForm.get('status')?.invalid && subActivityForm.get('status')?.touched">
+                    Status is required
+                </small>
             </div>
         </div>
     </ng-template>
 
     <ng-template #footer>
         <p-button label="Cancel" icon="pi pi-times" text (click)="hideDialog()" />
-        <p-button label="Save" icon="pi pi-check" (click)="saveSubActivity()" />
+        <p-button label="Save" icon="pi pi-check" [disabled]="subActivityForm.invalid" (click)="saveSubActivity()" />
     </ng-template>
 </p-dialog>
 

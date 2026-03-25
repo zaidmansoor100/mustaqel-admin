@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy } from '@angular/core';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { Table, TableModule } from 'primeng/table';
 import { CommonModule } from '@angular/common';
@@ -21,6 +21,10 @@ import { AccordionModule } from 'primeng/accordion';
 import { CustomValidators } from '@/common/validators/custom-validators';
 import { HttpClient } from '@angular/common/http';
 import { AdministrationService } from '@/services/administration.service';
+import { PermissionDirective } from '@/directives/permission.directive';
+import { PermissionService } from '@/services/permission.service';
+import { Permission } from '@/enums/permission.enum';
+import { Subject, takeUntil } from 'rxjs';
 
 @Component({
     selector: 'app-roles',
@@ -43,13 +47,14 @@ import { AdministrationService } from '@/services/administration.service';
         ConfirmDialogModule,
         InputNumberModule,
         CheckboxModule,
-        AccordionModule // Add AccordionModule here
+        AccordionModule,
+        PermissionDirective
     ],
     templateUrl: './roles.component.html',
     styleUrl: './roles.component.scss',
     providers: [MessageService, ConfirmationService]
 })
-export class RolesComponent implements OnInit {
+export class RolesComponent implements OnInit, OnDestroy {
     roleDialog: boolean = false;
     submitted: boolean = false;
     selectedRoles: any[] = [];
@@ -73,6 +78,16 @@ export class RolesComponent implements OnInit {
     allPermissionsFlat: string[] = [];
     rolePermissions: string[] = [];
 
+    // Permission flags for UI
+    canCreate$: any;
+    canEdit$: any;
+    canDelete$: any;
+    canView$: any;
+    canExport$: any;
+
+    // Make Permission enum available in template
+    Permission = Permission;
+
     @ViewChild('dt') dt!: Table;
 
     exportColumns!: any[];
@@ -85,17 +100,27 @@ export class RolesComponent implements OnInit {
     page = 1;
     rows = 10;
 
+    private destroy$ = new Subject<void>();
+
     constructor(
         private messageService: MessageService,
         private confirmationService: ConfirmationService,
         private administrationService: AdministrationService,
         private activatedRoute: ActivatedRoute,
         private http: HttpClient,
-        private fb: FormBuilder
+        private fb: FormBuilder,
+        private permissionService: PermissionService
     ) {}
 
     ngOnInit() {
-        this.roles = this.activatedRoute.snapshot.data['roles'][0]['data']['role']['data'];
+        this.canCreate$ = this.permissionService.hasPermission(Permission.CREATE_ROLES);
+        this.canEdit$ = this.permissionService.hasPermission(Permission.EDIT_ROLES);
+        this.canDelete$ = this.permissionService.hasPermission(Permission.DELETE_ROLES);
+        this.canView$ = this.permissionService.hasPermission(Permission.VIEW_ROLES);
+        this.canExport$ = this.permissionService.hasPermission(Permission.EXPORT_DATA_TALENT);
+
+        const rolesData = this.activatedRoute.snapshot.data['roles'];
+        this.roles = rolesData?.[0]?.data?.role?.data || [];
         console.log(this.roles);
 
         this.loadAllPermissions();
@@ -103,63 +128,65 @@ export class RolesComponent implements OnInit {
         this.formBuild();
     }
 
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
+    }
+
     loadAllPermissions() {
-        this.administrationService.getAllPermissions().subscribe({
-            next: (res) => {
-                // Handle the nested permissions structure
-                const permissionsData = res.data?.permissions || res;
-                this.groupPermissions(permissionsData);
-            },
-            error: (error) => {
-                console.log(error);
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'Failed to load permissions',
-                    life: 3000
-                });
-            }
-        });
+        this.administrationService.getAllPermissions()
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (res) => {
+                    const permissionsData = res.data?.permissions || res;
+                    this.groupPermissions(permissionsData);
+                },
+                error: (error) => {
+                    console.log(error);
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Error',
+                        detail: 'Failed to load permissions',
+                        life: 3000
+                    });
+                }
+            });
     }
 
     loadRolePermissions(roleId: number) {
-        this.administrationService.getPermissionByRoleId(roleId).subscribe({
-            next: (res) => {
-                // Extract permission names from the response
-                let permissions: string[] = [];
+        this.administrationService.getPermissionByRoleId(roleId)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (res) => {
+                    let permissions: string[] = [];
 
-                // Handle different response structures
-                if (res.data?.permissions) {
-                    permissions = res.data.permissions.map((perm: any) => (typeof perm === 'string' ? perm : perm.name));
-                } else if (Array.isArray(res)) {
-                    permissions = res.map((perm: any) => (typeof perm === 'string' ? perm : perm.name));
-                } else if (res.permissions) {
-                    permissions = res.permissions.map((perm: any) => (typeof perm === 'string' ? perm : perm.name));
+                    if (res.data?.permissions) {
+                        permissions = res.data.permissions.map((perm: any) => (typeof perm === 'string' ? perm : perm.name));
+                    } else if (Array.isArray(res)) {
+                        permissions = res.map((perm: any) => (typeof perm === 'string' ? perm : perm.name));
+                    } else if (res.permissions) {
+                        permissions = res.permissions.map((perm: any) => (typeof perm === 'string' ? perm : perm.name));
+                    }
+
+                    this.rolePermissions = permissions;
+                    this.roleForm.patchValue({ permissions: this.rolePermissions });
+
+                    setTimeout(() => {
+                        this.updateGroupSelectedStates();
+                    });
+                },
+                error: (error) => {
+                    console.log(error);
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Error',
+                        detail: 'Failed to load role permissions',
+                        life: 3000
+                    });
                 }
-
-                this.rolePermissions = permissions;
-
-                // Update the form with the role's permissions
-                this.roleForm.patchValue({ permissions: this.rolePermissions });
-
-                // IMPORTANT: Update group selected states after permissions are loaded
-                setTimeout(() => {
-                    this.updateGroupSelectedStates();
-                });
-            },
-            error: (error) => {
-                console.log(error);
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'Failed to load role permissions',
-                    life: 3000
-                });
-            }
-        });
+            });
     }
 
-    // Add this method to update group selected states
     updateGroupSelectedStates() {
         const currentPermissions = this.roleForm?.get('permissions')?.value || [];
 
@@ -168,16 +195,12 @@ export class RolesComponent implements OnInit {
             const allSelected = groupPermissionNames.every((p: string) => currentPermissions.includes(p));
             const someSelected = groupPermissionNames.some((p: string) => currentPermissions.includes(p));
 
-            // Update the group.selected property
             group.selected = allSelected;
-
-            // Optional: Add a partially selected state for better UX
             group.partiallySelected = someSelected && !allSelected;
         });
     }
 
     groupPermissions(permissionsData: any) {
-        // Transform the grouped permissions from API into a format suitable for UI
         this.groupedPermissions = [];
         this.allPermissionsFlat = [];
 
@@ -196,23 +219,17 @@ export class RolesComponent implements OnInit {
                 groupKey: groupKey,
                 permissions: formattedPermissions,
                 selected: false,
-                partiallySelected: false // Add this property
+                partiallySelected: false
             });
 
-            // Add to flat list for easy checking
             this.allPermissionsFlat.push(...permissions);
         });
 
-        // Sort groups alphabetically
         this.groupedPermissions.sort((a, b) => a.groupName.localeCompare(b.groupName));
-
         console.log('Grouped permissions:', this.groupedPermissions);
     }
 
     formatGroupName(groupKey: string): string {
-        // Convert "talent-applications" to "Talent Applications"
-        // Convert "admin-users" to "Admin Users"
-        // Convert "quality-checks" to "Quality Checks"
         return groupKey
             .split('-')
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -220,8 +237,6 @@ export class RolesComponent implements OnInit {
     }
 
     formatPermissionName(permission: string): string {
-        // Convert "view-talent-applications" to "View Talent Applications"
-        // Convert "create-admin-users" to "Create Admin Users"
         const parts = permission.split('-');
         if (parts.length === 1) {
             return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
@@ -237,41 +252,23 @@ export class RolesComponent implements OnInit {
         return `${action} ${formattedModule}`;
     }
 
-    // Helper method to check if all permissions in a group are selected
-    isGroupFullySelected(group: any): boolean {
-        const currentPermissions = this.roleForm?.get('permissions')?.value || [];
-        return group.permissions.every((p: any) => currentPermissions.includes(p.name));
-    }
-
-    // Helper method to check if some permissions in a group are selected
-    isGroupPartiallySelected(group: any): boolean {
-        const currentPermissions = this.roleForm?.get('permissions')?.value || [];
-        const selectedCount = group.permissions.filter((p: any) => currentPermissions.includes(p.name)).length;
-        return selectedCount > 0 && selectedCount < group.permissions.length;
-    }
-
-    // Toggle all permissions in a group
-    // Toggle all permissions in a group
     toggleGroup(group: any, checked: boolean) {
         const permissionsControl = this.roleForm.get('permissions');
         const currentPermissions = permissionsControl?.value || [];
         const groupPermissions = group.permissions.map((p: any) => p.name);
 
         if (checked) {
-            // Add all permissions from this group (remove duplicates)
             const newPermissions = [...new Set([...currentPermissions, ...groupPermissions])];
             permissionsControl?.setValue(newPermissions);
             group.selected = true;
             group.partiallySelected = false;
         } else {
-            // Remove all permissions from this group
             const newPermissions = currentPermissions.filter((p: string) => !groupPermissions.includes(p));
             permissionsControl?.setValue(newPermissions);
             group.selected = false;
             group.partiallySelected = false;
         }
 
-        // Mark as touched/dirty to trigger validation if needed
         permissionsControl?.markAsTouched();
         permissionsControl?.markAsDirty();
     }
@@ -310,32 +307,31 @@ export class RolesComponent implements OnInit {
     loadRoles(event: any) {
         const page = event.first / event.rows + 1;
         const perPage = event.rows;
-        this.administrationService.getAllRoles(`?page=${page}&per_page=${perPage}`).subscribe({
-            next: (res) => {
-                this.roles = res.data.role.data;
-                this.totalRecords = res.total;
-                this.page = res.current_page;
-            },
-            error: (error: any) => {
-                console.log(error);
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'Failed to load roles',
-                    life: 3000
-                });
-            }
-        });
+        this.administrationService.getAllRoles(`?page=${page}&per_page=${perPage}`)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (res) => {
+                    this.roles = res.data.role.data;
+                    this.totalRecords = res.total;
+                    this.page = res.current_page;
+                },
+                error: (error: any) => {
+                    console.log(error);
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Error',
+                        detail: 'Failed to load roles',
+                        life: 3000
+                    });
+                }
+            });
     }
 
     formBuild(role?: any) {
-        // Reset group states first
         this.resetGroupStates();
 
-        // Extract permission names from the permissions array if it exists
         let permissionNames: string[] = [];
         if (role?.permissions && Array.isArray(role.permissions)) {
-            // Check if permissions are objects with 'name' property or just strings
             permissionNames = role.permissions.map((perm: any) => (typeof perm === 'string' ? perm : perm.name));
         }
 
@@ -346,14 +342,12 @@ export class RolesComponent implements OnInit {
             permissions: [permissionNames]
         });
 
-        // Update group selected states if we have permissions
         if (permissionNames.length > 0) {
             setTimeout(() => {
                 this.updateGroupSelectedStates();
             });
         }
 
-        // If editing and we have role id, load permissions (but only if not already loaded)
         if (role?.id && (!permissionNames.length || permissionNames.length === 0)) {
             this.loadRolePermissions(role.id);
         }
@@ -367,7 +361,7 @@ export class RolesComponent implements OnInit {
     }
 
     openNew() {
-        this.resetGroupStates(); // Reset group checkbox states
+        this.resetGroupStates();
         this.formBuild();
         this.role = {};
         this.submitted = false;
@@ -376,11 +370,7 @@ export class RolesComponent implements OnInit {
 
     editRole(role: any) {
         console.log('Editing role:', role);
-
-        // Reset permissions
         this.rolePermissions = [];
-
-        // Build form with role data (this will extract permission names)
         this.formBuild(role);
         this.role = { ...role };
         this.roleDialog = true;
@@ -392,9 +382,11 @@ export class RolesComponent implements OnInit {
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                const deleteRequests = this.selectedRoles.map((cat) => this.administrationService.deleteRole(cat.id));
+                const deleteRequests = this.selectedRoles.map((cat) => 
+                    this.administrationService.deleteRole(cat.id).toPromise()
+                );
 
-                Promise.all(deleteRequests.map((req) => req.toPromise()))
+                Promise.all(deleteRequests)
                     .then(() => {
                         this.roles = this.roles.filter((val) => !this.selectedRoles.includes(val));
                         this.selectedRoles = [];
@@ -424,26 +416,28 @@ export class RolesComponent implements OnInit {
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                this.administrationService.deleteRole(role.id).subscribe({
-                    next: () => {
-                        this.roles = this.roles.filter((val) => val.id !== role.id);
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Successful',
-                            detail: 'Role Deleted',
-                            life: 3000
-                        });
-                    },
-                    error: (error) => {
-                        console.log(error);
-                        this.messageService.add({
-                            severity: 'error',
-                            summary: 'Error',
-                            detail: error.error?.message || 'Failed to delete role',
-                            life: 3000
-                        });
-                    }
-                });
+                this.administrationService.deleteRole(role.id)
+                    .pipe(takeUntil(this.destroy$))
+                    .subscribe({
+                        next: () => {
+                            this.roles = this.roles.filter((val) => val.id !== role.id);
+                            this.messageService.add({
+                                severity: 'success',
+                                summary: 'Successful',
+                                detail: 'Role Deleted',
+                                life: 3000
+                            });
+                        },
+                        error: (error) => {
+                            console.log(error);
+                            this.messageService.add({
+                                severity: 'error',
+                                summary: 'Error',
+                                detail: error.error?.message || 'Failed to delete role',
+                                life: 3000
+                            });
+                        }
+                    });
             }
         });
     }
@@ -452,7 +446,6 @@ export class RolesComponent implements OnInit {
         this.submitted = true;
 
         if (this.roleForm.invalid) {
-            // Mark all fields as touched to show validation errors
             Object.keys(this.roleForm.controls).forEach((key) => {
                 this.roleForm.get(key)?.markAsTouched();
             });
@@ -465,78 +458,78 @@ export class RolesComponent implements OnInit {
             name: formValue.name,
             type: formValue.type,
             approvalLevels: formValue.approvalLevels,
-            permissions: formValue.permissions || [] // This should already be array of strings
+            permissions: formValue.permissions || []
         };
 
         console.log('Saving role with data:', obj);
 
         if (this.role.id) {
-            // Update existing role
-            this.administrationService.updateRole(this.role.id, obj).subscribe({
-                next: (res) => {
-                    const index = this.roles.findIndex((c) => c.id === this.role.id);
-                    if (index !== -1) {
-                        this.roles[index] = { ...this.roles[index], ...res };
-                    }
-                    this.messageService.add({
-                        severity: 'success',
-                        summary: 'Successful',
-                        detail: 'Role Updated Successfully',
-                        life: 3000
-                    });
-                    this.roleDialog = false;
-                    this.role = {};
+            this.administrationService.updateRole(this.role.id, obj)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res) => {
+                        const index = this.roles.findIndex((c) => c.id === this.role.id);
+                        if (index !== -1) {
+                            this.roles[index] = { ...this.roles[index], ...res };
+                        }
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'Successful',
+                            detail: 'Role Updated Successfully',
+                            life: 3000
+                        });
+                        this.roleDialog = false;
+                        this.role = {};
 
-                    // Refresh the table if needed
-                    if (this.dt) {
-                        this.dt.reset();
+                        if (this.dt) {
+                            this.dt.reset();
+                        }
+                    },
+                    error: (error) => {
+                        console.log(error);
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: error.error?.message || 'Failed to update role',
+                            life: 3000
+                        });
                     }
-                },
-                error: (error) => {
-                    console.log(error);
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: error.error?.message || 'Failed to update role',
-                        life: 3000
-                    });
-                }
-            });
+                });
         } else {
-            // Create new role
-            this.administrationService.createRole(obj).subscribe({
-                next: (res) => {
-                    this.roles.unshift(res);
-                    this.messageService.add({
-                        severity: 'success',
-                        summary: 'Successful',
-                        detail: 'Role Created Successfully',
-                        life: 3000
-                    });
-                    this.roleDialog = false;
-                    this.role = {};
+            this.administrationService.createRole(obj)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res) => {
+                        this.roles.unshift(res);
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'Successful',
+                            detail: 'Role Created Successfully',
+                            life: 3000
+                        });
+                        this.roleDialog = false;
+                        this.role = {};
 
-                    // Refresh the table data
-                    if (this.dt) {
-                        this.dt.reset();
+                        if (this.dt) {
+                            this.dt.reset();
+                        }
+                    },
+                    error: (error) => {
+                        console.log(error.error);
+                        let errorMessage = 'Failed to create role';
+                        if (error.error?.message) {
+                            errorMessage = error.error.message;
+                        } else if (error.error?.errors) {
+                            errorMessage = Object.values(error.error.errors).join(', ');
+                        }
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: errorMessage,
+                            life: 3000
+                        });
                     }
-                },
-                error: (error) => {
-                    console.log(error.error);
-                    let errorMessage = 'Failed to create role';
-                    if (error.error?.message) {
-                        errorMessage = error.error.message;
-                    } else if (error.error?.errors) {
-                        errorMessage = Object.values(error.error.errors).join(', ');
-                    }
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: errorMessage,
-                        life: 3000
-                    });
-                }
-            });
+                });
         }
     }
 
@@ -544,10 +537,9 @@ export class RolesComponent implements OnInit {
         this.roleDialog = false;
         this.submitted = false;
         this.roleForm.reset();
-        this.resetGroupStates(); // Reset group checkbox states when closing
+        this.resetGroupStates();
     }
 
-    // Helper method to get permission count
     getTotalPermissionsCount(): number {
         return this.allPermissionsFlat.length;
     }

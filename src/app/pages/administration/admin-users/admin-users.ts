@@ -20,6 +20,9 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { CustomValidators } from '@/common/validators/custom-validators';
 import { AdministrationService } from '@/services/administration.service';
 import { finalize, Subject, takeUntil } from 'rxjs';
+import { PermissionDirective } from '@/directives/permission.directive';
+import { PermissionService } from '@/services/permission.service';
+import { Permission } from '@/enums/permission.enum';
 
 // Custom validator for password match
 export const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
@@ -85,7 +88,8 @@ interface StatusOption {
         IconFieldModule,
         ConfirmDialogModule,
         InputNumberModule,
-        CheckboxModule
+        CheckboxModule,
+        PermissionDirective
     ],
     templateUrl: './admin-users.html',
     styleUrl: './admin-users.scss',
@@ -107,6 +111,26 @@ export class AdminUsers implements OnInit, OnDestroy {
 
     // Permissions
     private combinedPermissions: Set<string> = new Set();
+
+    // Permission flags for UI
+    get canCreate$() {
+        return this.permissionService.hasPermission(Permission.CREATE_ADMIN_USERS);
+    }
+    get canEdit$() {
+        return this.permissionService.hasPermission(Permission.EDIT_ADMIN_USERS);
+    }
+    get canDelete$() {
+        return this.permissionService.hasPermission(Permission.DELETE_ADMIN_USERS);
+    }
+    get canView$() {
+        return this.permissionService.hasPermission(Permission.VIEW_ADMIN_USERS);
+    }
+    get canExport$() {
+        return this.permissionService.hasPermission(Permission.EXPORT_DATA_TALENT);
+    }
+
+    // Make Permission enum available in template
+    Permission = Permission;
 
     // Options
     statusOptions: StatusOption[] = [
@@ -135,7 +159,8 @@ export class AdminUsers implements OnInit, OnDestroy {
         private confirmationService: ConfirmationService,
         private administrationService: AdministrationService,
         private activatedRoute: ActivatedRoute,
-        private fb: FormBuilder
+        private fb: FormBuilder,
+        private permissionService: PermissionService
     ) {}
 
     ngOnInit(): void {
@@ -479,7 +504,9 @@ export class AdminUsers implements OnInit, OnDestroy {
             header: 'Confirm Deletion',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                const deleteRequests = this.selectedUsers.map((user) => this.administrationService.deleteUser('jusour', user.id!).toPromise());
+                const deleteRequests = this.selectedUsers.map((user) => 
+                    this.administrationService.deleteUser('jusour', user.id!).toPromise()
+                );
 
                 Promise.all(deleteRequests)
                     .then(() => {
@@ -575,19 +602,15 @@ export class AdminUsers implements OnInit, OnDestroy {
     }
 
     private extractErrorMessage(error: any): string {
-        // Default message
         let message = 'An error occurred';
 
         if (!error) return message;
 
-        // Check for error.error structure
         if (error.error) {
-            // Handle your specific API validation error structure
             if (error.error.errors?.errors) {
                 const nestedErrors = error.error.errors.errors;
                 const allErrors: string[] = [];
 
-                // Extract all error messages
                 Object.values(nestedErrors).forEach((err: any) => {
                     if (Array.isArray(err)) {
                         allErrors.push(...err);
@@ -601,11 +624,9 @@ export class AdminUsers implements OnInit, OnDestroy {
                 }
             }
 
-            // Handle errors object
             if (error.error.errors) {
                 const errorObj = error.error.errors;
 
-                // If it's an object with field-specific errors
                 if (typeof errorObj === 'object' && !Array.isArray(errorObj)) {
                     const allErrors = Object.values(errorObj).flat();
                     if (allErrors.length > 0) {
@@ -613,19 +634,16 @@ export class AdminUsers implements OnInit, OnDestroy {
                     }
                 }
 
-                // If it's a string
                 if (typeof errorObj === 'string') {
                     return errorObj;
                 }
             }
 
-            // Handle message field
             if (error.error.message) {
                 return error.error.message;
             }
         }
 
-        // Handle error with message directly
         if (error.message) {
             return error.message;
         }

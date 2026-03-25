@@ -22,6 +22,9 @@ import { AdministrationService } from '@/services/administration.service';
 import { finalize, Subject, takeUntil } from 'rxjs';
 import { ConfigurationService } from '@/services/configuration.service';
 import { MultiSelectModule } from 'primeng/multiselect';
+import { PermissionDirective } from '@/directives/permission.directive';
+import { PermissionService } from '@/services/permission.service';
+import { Permission } from '@/enums/permission.enum';
 
 // Custom validator for password match
 export const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
@@ -137,7 +140,8 @@ interface IncubatorOption {
         ConfirmDialogModule,
         InputNumberModule,
         CheckboxModule,
-        MultiSelectModule
+        MultiSelectModule,
+        PermissionDirective
     ],
     templateUrl: './entity-users.html',
     styleUrl: './entity-users.scss',
@@ -159,6 +163,16 @@ export class EntityUsers implements OnInit, OnDestroy {
 
     // Permissions
     private combinedPermissions: Set<string> = new Set();
+    
+    // Permission flags for UI
+    canCreate$: any;
+    canEdit$: any;
+    canDelete$: any;
+    canView$: any;
+    canExport$: any;
+
+    // Make Permission enum available in template
+    Permission = Permission;
 
     // Options
     statusOptions: StatusOption[] = [
@@ -199,10 +213,12 @@ export class EntityUsers implements OnInit, OnDestroy {
         private configurationService: ConfigurationService,
         private administrationService: AdministrationService,
         private activatedRoute: ActivatedRoute,
-        private fb: FormBuilder
+        private fb: FormBuilder,
+        private permissionService: PermissionService
     ) {}
 
     ngOnInit(): void {
+        this.initializePermissions();
         this.initializeData();
         this.loadRoles();
         this.loadEntities();
@@ -231,6 +247,14 @@ export class EntityUsers implements OnInit, OnDestroy {
     }
 
     // Initialization Methods
+    private initializePermissions(): void {
+        this.canCreate$ = this.permissionService.hasPermission(Permission.CREATE_ENTITY_USERS);
+        this.canEdit$ = this.permissionService.hasPermission(Permission.EDIT_ENTITY_USERS);
+        this.canDelete$ = this.permissionService.hasPermission(Permission.DELETE_ENTITY_USERS);
+        this.canView$ = this.permissionService.hasPermission(Permission.VIEW_ENTITY_USERS);
+        this.canExport$ = this.permissionService.hasPermission(Permission.EXPORT_DATA_TALENT);
+    }
+
     private initializeData(): void {
         const usersData = this.activatedRoute.snapshot.data['users'];
         this.users = usersData?.[0]?.data?.user?.data || [];
@@ -276,7 +300,6 @@ export class EntityUsers implements OnInit, OnDestroy {
     private loadRolePermissions(roleId: number): void {
         console.log('Loading permissions for role ID:', roleId);
 
-        // Find the role name for debugging
         const role = this.roles.find((r) => r.id === roleId);
         console.log('Role being loaded:', role);
 
@@ -482,7 +505,7 @@ export class EntityUsers implements OnInit, OnDestroy {
                 levels: this.fb.array([]),
                 entities: this.fb.array([]),
                 incubators: this.fb.array([]),
-                permissions: [[]] // Start with empty permissions
+                permissions: [[]]
             },
             { validators: user?.id ? [] : [passwordMatchValidator] }
         );
@@ -495,6 +518,8 @@ export class EntityUsers implements OnInit, OnDestroy {
             existingIncubators.forEach((incubator) => {
                 this.incubatorsArray.push(this.fb.control(incubator, Validators.required));
             });
+        } else {
+            this.addIncubator();
         }
 
         // Load permissions for existing roles (important for edit mode)
@@ -543,7 +568,6 @@ export class EntityUsers implements OnInit, OnDestroy {
             return [];
         }
 
-        // The API returns entities in the metaData.meta.entities structure
         const entitiesData = user.metaData.meta.entities;
 
         return entitiesData.map((entity: any) => ({
@@ -554,6 +578,7 @@ export class EntityUsers implements OnInit, OnDestroy {
             }))
         }));
     }
+
     private populateLevels(levels: UserLevel[]): void {
         if (levels.length > 0) {
             levels.forEach((level) => {
@@ -575,6 +600,8 @@ export class EntityUsers implements OnInit, OnDestroy {
             entities.forEach((entity) => {
                 this.addEntityWithData(entity);
             });
+        } else {
+            this.addEntity();
         }
     }
 
@@ -644,7 +671,7 @@ export class EntityUsers implements OnInit, OnDestroy {
             entity.activities.map((activity) =>
                 this.fb.group({
                     slug: [activity.slug, Validators.required],
-                    subActivities: [activity.subActivities || []] // Keep existing sub-activities
+                    subActivities: [activity.subActivities || []]
                 })
             )
         );
@@ -766,7 +793,6 @@ export class EntityUsers implements OnInit, OnDestroy {
             requestBody.personalInfo.confirmPassword = formValue.confirmPassword;
         }
 
-        // Debug log to see what's being sent
         console.log('Request Body being sent:', JSON.stringify(requestBody, null, 2));
         console.log('Permissions being sent:', formValue.permissions);
 
@@ -833,7 +859,9 @@ export class EntityUsers implements OnInit, OnDestroy {
             header: 'Confirm Deletion',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                const deleteRequests = this.selectedUsers.map((user) => this.administrationService.deleteUser('entity', user.id!).toPromise());
+                const deleteRequests = this.selectedUsers.map((user) => 
+                    this.administrationService.deleteUser('entity', user.id!).toPromise()
+                );
 
                 Promise.all(deleteRequests)
                     .then(() => {

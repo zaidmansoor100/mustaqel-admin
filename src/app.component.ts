@@ -5,6 +5,7 @@ import { ProgressSpinner } from 'primeng/progressspinner';
 import { Observable } from 'rxjs';
 import { LoaderService } from '@/services/loader.service';
 import { NgIf, AsyncPipe } from '@angular/common'; // 👈 add these
+import { Permission } from '@/enums/permission.enum';
 
 @Component({
     selector: 'app-root',
@@ -20,6 +21,7 @@ import { NgIf, AsyncPipe } from '@angular/common'; // 👈 add these
 })
 export class AppComponent {
     loading$: Observable<boolean>;
+     Permission = Permission;
 
     constructor(private loaderService: LoaderService) {
         this.loading$ = this.loaderService.loading$;

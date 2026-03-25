@@ -1,17 +1,26 @@
+<!-- Toolbar with permission-based buttons -->
 <p-toolbar styleClass="mb-6">
     <p-toast></p-toast>
     <ng-template #start>
-        <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="openNew()" />
-        <p-button severity="secondary" label="Delete" icon="pi pi-trash" outlined (onClick)="deleteSelectedFormFields()"
+        <!-- New button - only visible if user has CREATE permission -->
+        <p-button *appPermission="Permission.CREATE_FORM_FIELDS" label="New" icon="pi pi-plus" severity="secondary"
+            class="mr-2" (onClick)="openNew()" />
+
+        <!-- Delete button - only visible if user has DELETE permission -->
+        <p-button *appPermission="Permission.DELETE_FORM_FIELDS" severity="secondary" label="Delete" icon="pi pi-trash"
+            outlined (onClick)="deleteSelectedFormFields()"
             [disabled]="!selectedFormFields || !selectedFormFields.length" />
     </ng-template>
 
     <ng-template #end>
-        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+        <!-- Export button - only visible if user has EXPORT permission -->
+        <p-button *appPermission="Permission.EXPORT_DATA_TALENT" label="Export" icon="pi pi-upload" severity="secondary"
+            (onClick)="exportCSV()" />
     </ng-template>
 </p-toolbar>
 
-<p-table [value]="formFields" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
+<!-- Form Fields Table -->
+<p-table #dt [value]="formFields" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
     (onLazyLoad)="loadFormFields($event)" [globalFilterFields]="['name', 'nameAr', 'status']"
     [tableStyle]="{ 'min-width': '75rem' }" [(selection)]="selectedFormFields" [rowHover]="true" dataKey="id"
     currentPageReportTemplate="Showing {first} to {last} of {totalRecords} Fields" [showCurrentPageReport]="true"
@@ -29,15 +38,23 @@
 
     <ng-template #header>
         <tr>
-            <th><p-tableHeaderCheckbox /></th>
+            <!-- Checkbox column - only visible if user has DELETE permission -->
+            <th *appPermission="Permission.DELETE_FORM_FIELDS">
+                <p-tableHeaderCheckbox />
+            </th>
             <th *ngFor="let col of cols" [pSortableColumn]="col.field">{{ col.header }}</th>
-            <th></th>
+            <!-- Actions column - only visible if user has EDIT or DELETE permission -->
+            <th *appPermission="[Permission.EDIT_FORM_FIELDS, Permission.DELETE_FORM_FIELDS]" appPermissionMode="any">
+                Actions</th>
         </tr>
     </ng-template>
 
     <ng-template #body let-field>
         <tr>
-            <td><p-tableCheckbox [value]="field" /></td>
+            <!-- Checkbox - only visible if user has DELETE permission -->
+            <td *appPermission="Permission.DELETE_FORM_FIELDS">
+                <p-tableCheckbox [value]="field" />
+            </td>
             <td>{{ field.id }}</td>
             <td>{{ field.nameEn }}</td>
             <td>{{ field.nameAr }}</td>
@@ -68,17 +85,33 @@
                 <p-tag [severity]="field.status === 1 ? 'success' : 'danger'"
                     [value]="field.status === 1 ? 'Active' : 'Inactive'" />
             </td>
-            <td>
-                <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true"
-                    (click)="editFormField(field)" />
-                <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
-                    (click)="deleteFormField(field)" />
+            <!-- Action buttons - only visible based on permissions -->
+            <td *appPermission="[Permission.EDIT_FORM_FIELDS, Permission.DELETE_FORM_FIELDS]" appPermissionMode="any">
+                <!-- Edit button - only visible if user has EDIT permission -->
+                <p-button *appPermission="Permission.EDIT_FORM_FIELDS" icon="pi pi-pencil" class="mr-2" [rounded]="true"
+                    [outlined]="true" (click)="editFormField(field)" />
+
+                <!-- Delete button - only visible if user has DELETE permission -->
+                <p-button *appPermission="Permission.DELETE_FORM_FIELDS" icon="pi pi-trash" severity="danger"
+                    [rounded]="true" [outlined]="true" (click)="deleteFormField(field)" />
+            </td>
+        </tr>
+    </ng-template>
+
+    <!-- Empty state message -->
+    <ng-template #emptymessage>
+        <tr>
+            <td [attr.colspan]="(canDelete$ | async) ? 12 : 11" class="text-center">
+                No form fields found.
             </td>
         </tr>
     </ng-template>
 </p-table>
 
-<p-dialog [(visible)]="formFieldDialog" [style]="{ width: '900px' }" header="Field Details" [modal]="true">
+<!-- Form Field Dialog -->
+<p-dialog [(visible)]="formFieldDialog" [style]="{ width: '900px' }" header="Field Details" [modal]="true"
+    [draggable]="false" [resizable]="false">
+
     <ng-template #content>
         <form [formGroup]="formFieldForm" (ngSubmit)="saveFormField()">
             <div class="grid grid-cols-2 gap-6">
@@ -88,28 +121,62 @@
                         <h3 class="col-span-2 font-bold text-lg mb-2">Field Information</h3>
 
                         <div class="mb-4">
-                            <label for="nameEn" class="block font-bold mb-2">Name (English)</label>
+                            <label for="nameEn" class="block font-bold mb-2">Name (English) <span
+                                    class="text-red-500">*</span></label>
                             <input class="w-full" type="text" pInputText id="nameEn" required autofocus
                                 formControlName="nameEn" />
+                            <small class="text-red-500"
+                                *ngIf="formFieldForm.get('formFields.nameEn')?.invalid && formFieldForm.get('formFields.nameEn')?.touched">
+                                <span *ngIf="formFieldForm.get('formFields.nameEn')?.hasError('required')">Name is
+                                    required</span>
+                                <span *ngIf="formFieldForm.get('formFields.nameEn')?.hasError('minlength')">Name must be
+                                    at least 3 characters</span>
+                                <span *ngIf="formFieldForm.get('formFields.nameEn')?.hasError('maxlength')">Name cannot
+                                    exceed 50 characters</span>
+                                <span *ngIf="formFieldForm.get('formFields.nameEn')?.hasError('alpha')">Only letters are
+                                    allowed</span>
+                            </small>
                         </div>
 
                         <div class="mb-4">
-                            <label for="nameAr" class="block font-bold mb-2">Name (Arabic)</label>
+                            <label for="nameAr" class="block font-bold mb-2">Name (Arabic) <span
+                                    class="text-red-500">*</span></label>
                             <input class="w-full" type="text" pInputText id="nameAr" required
                                 formControlName="nameAr" />
+                            <small class="text-red-500"
+                                *ngIf="formFieldForm.get('formFields.nameAr')?.invalid && formFieldForm.get('formFields.nameAr')?.touched">
+                                <span *ngIf="formFieldForm.get('formFields.nameAr')?.hasError('required')">Arabic name
+                                    is required</span>
+                                <span *ngIf="formFieldForm.get('formFields.nameAr')?.hasError('minlength')">Name must be
+                                    at least 3 characters</span>
+                                <span *ngIf="formFieldForm.get('formFields.nameAr')?.hasError('maxlength')">Name cannot
+                                    exceed 255 characters</span>
+                                <span *ngIf="formFieldForm.get('formFields.nameAr')?.hasError('arabic')">Only Arabic
+                                    characters are allowed</span>
+                            </small>
                         </div>
 
                         <div class="mb-4">
-                            <label for="type" class="block font-bold mb-2">Type</label>
+                            <label for="type" class="block font-bold mb-2">Type <span
+                                    class="text-red-500">*</span></label>
                             <p-select appendTo="body" [options]="fieldTypes" optionLabel="name" optionValue="name"
                                 [filter]="true" placeholder="Field Type" class="w-full" required formControlName="type"
                                 (onChange)="onFieldTypeChange($event.value)" />
+                            <small class="text-red-500"
+                                *ngIf="formFieldForm.get('formFields.type')?.invalid && formFieldForm.get('formFields.type')?.touched">
+                                Field type is required
+                            </small>
                         </div>
 
                         <div class="mb-4">
-                            <label for="status" class="block font-bold mb-2">Status</label>
+                            <label for="status" class="block font-bold mb-2">Status <span
+                                    class="text-red-500">*</span></label>
                             <p-select appendTo="body" [options]="status" optionLabel="name" optionValue="id"
                                 placeholder="Status" class="w-full" required formControlName="status" />
+                            <small class="text-red-500"
+                                *ngIf="formFieldForm.get('formFields.status')?.invalid && formFieldForm.get('formFields.status')?.touched">
+                                Status is required
+                            </small>
                         </div>
                     </div>
                 </ng-container>
@@ -121,16 +188,22 @@
 
                         <!-- File Type: Show Extensions -->
                         <div class="mb-4" *ngIf="currentFieldType === 'file'">
-                            <label for="extensions" class="block font-bold mb-2">Allowed File Extensions</label>
+                            <label for="extensions" class="block font-bold mb-2">Allowed File Extensions <span
+                                    class="text-red-500">*</span></label>
                             <p-multiselect appendTo="body" [options]="extensions" [filter]="true" optionLabel="name"
                                 optionValue="name" placeholder="Select Extensions" [maxSelectedLabels]="3"
                                 class="w-full" formControlName="extensions" />
+                            <small class="text-red-500"
+                                *ngIf="formFieldForm.get('metaFields.extensions')?.invalid && formFieldForm.get('metaFields.extensions')?.touched">
+                                At least one extension is required
+                            </small>
                         </div>
 
                         <!-- Select/Radio/Checkbox Type: Show Dropdown Options Builder -->
                         <div class="mb-4"
                             *ngIf="currentFieldType === 'select' || currentFieldType === 'radio' || currentFieldType === 'checkbox'">
-                            <label class="block font-bold mb-2">Options for {{currentFieldType}}</label>
+                            <label class="block font-bold mb-2">Options for {{currentFieldType}} <span
+                                    class="text-red-500">*</span></label>
                             <div class="mb-3">
                                 <div class="flex gap-2 mb-2">
                                     <input #optionInput type="text" pInputText placeholder="Enter an option"
@@ -178,19 +251,11 @@
                         <div *ngFor="let idData of identificationDataFormArray.controls; let i = index"
                             [formGroupName]="i" class="grid grid-cols-1 gap-4 mb-6 p-4 border rounded-lg">
 
-                            <div class="grid grid-cols-3 gap-4 mb-4">
-                                <!-- Key Field - Auto-populated from category -->
-                                <div class="hidden">
-                                    <label [for]="'key-' + i" class="block font-bold mb-2">Key (Auto-filled)</label>
-                                    <input class="w-full" type="text" pInputText [id]="'key-' + i" required
-                                        formControlName="key" placeholder="Will auto-fill from category" readonly />
-                                    <small class="text-gray-500">Auto-filled from selected category</small>
-                                </div>
-
+                            <div class="grid grid-cols-2 gap-4 mb-4">
                                 <!-- Onshore/Offshore Field -->
                                 <div>
                                     <label [for]="'onshoreOffShore-' + i" class="block font-bold mb-2">Onshore /
-                                        Offshore</label>
+                                        Offshore <span class="text-red-500">*</span></label>
                                     <p-select appendTo="body" [options]="onshoreOffShoreType" optionLabel="name"
                                         optionValue="name" [filter]="true" placeholder="Select Type" class="w-full"
                                         required [formControlName]="'onshoreOffShore'"
@@ -199,7 +264,8 @@
 
                                 <!-- Is Required Field -->
                                 <div>
-                                    <label [for]="'isRequired-' + i" class="block font-bold mb-2">Is Required</label>
+                                    <label [for]="'isRequired-' + i" class="block font-bold mb-2">Is Required <span
+                                            class="text-red-500">*</span></label>
                                     <p-select appendTo="body" [options]="idRequired" optionLabel="name"
                                         optionValue="value" [filter]="true" placeholder="Required?" class="w-full"
                                         required [formControlName]="'isRequired'" [attr.id]="'isRequired-' + i" />
@@ -207,19 +273,16 @@
                             </div>
 
                             <!-- Value Object (Nested Fields) -->
-                            <div class="grid grid-cols-7 gap-4">
-                                <h4 class="col-span-7 font-bold mb-2">Identification Details</h4>
-
+                            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 <!-- Category -->
                                 <div class="mb-2">
                                     <label [for]="'categorySlug-' + i" class="block font-bold mb-2 text-sm">Category
-                                        *</label>
+                                        <span class="text-red-500">*</span></label>
                                     <p-select appendTo="body" [options]="categories" optionLabel="name"
                                         optionValue="slug" [filter]="true" placeholder="Category" class="w-full"
                                         required formControlName="categorySlug"
                                         (onChange)="onDropDownChange('categorySlug', $event.value, i)"
                                         [attr.id]="'categorySlug-' + i" />
-                                    <small class="text-gray-500 hidden">Key will be set to category slug</small>
                                 </div>
 
                                 <!-- Sub Category -->

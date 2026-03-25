@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, OnDestroy } from '@angular/core';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { Table, TableModule } from 'primeng/table';
 import { CommonModule } from '@angular/common';
@@ -18,9 +18,14 @@ import { ConfigurationService } from '@/services/configuration.service';
 import { SelectModule } from 'primeng/select';
 import { CustomValidators } from '@/common/validators/custom-validators';
 import { MultiSelectModule } from 'primeng/multiselect';
+import { PermissionDirective } from '@/directives/permission.directive';
+import { PermissionService } from '@/services/permission.service';
+import { Permission } from '@/enums/permission.enum';
+import { Subject, takeUntil } from 'rxjs';
 
 @Component({
     selector: 'app-sectors',
+    standalone: true,
     imports: [
         ReactiveFormsModule,
         SelectModule,
@@ -37,26 +42,21 @@ import { MultiSelectModule } from 'primeng/multiselect';
         DialogModule,
         InputIconModule,
         IconFieldModule,
-        ConfirmDialogModule
+        ConfirmDialogModule,
+        PermissionDirective
     ],
-
     templateUrl: './sectors.component.html',
     styleUrl: './sectors.component.scss',
     providers: [MessageService, ConfirmationService]
 })
-export class SectorsComponent implements OnInit {
+export class SectorsComponent implements OnInit, OnDestroy {
     sectorDialog: boolean = false;
     submitted: boolean = false;
     selectedSectors: any[] = [];
+
     status: any = [
-        {
-            id: 1,
-            name: 'Active'
-        },
-        {
-            id: 0,
-            name: 'Inactive'
-        }
+        { id: 1, name: 'Active' },
+        { id: 0, name: 'Inactive' }
     ];
 
     categories: any[] = [];
@@ -73,22 +73,45 @@ export class SectorsComponent implements OnInit {
     page = 1;
     rows = 10;
 
+    // Permission flags for UI
+    canCreate$: any;
+    canEdit$: any;
+    canDelete$: any;
+    canView$: any;
+    canExport$: any;
+
+    // Make Permission enum available in template
+    Permission = Permission;
+
+    private destroy$ = new Subject<void>();
+
     constructor(
         private messageService: MessageService,
         private confirmationService: ConfirmationService,
         private configurationService: ConfigurationService,
         private activatedRoute: ActivatedRoute,
-        private fb: FormBuilder
+        private fb: FormBuilder,
+        private permissionService: PermissionService
     ) {}
 
     ngOnInit() {
-        this.sectors = this.activatedRoute.snapshot.data['sectorsResolver'][0]['data'];
-        this.categories = this.activatedRoute.snapshot.data['sectorsResolver'][1]['data'];
+        this.canCreate$ = this.permissionService.hasPermission(Permission.CREATE_SECTORS);
+        this.canEdit$ = this.permissionService.hasPermission(Permission.EDIT_SECTORS);
+        this.canDelete$ = this.permissionService.hasPermission(Permission.DELETE_SECTORS);
+        this.canView$ = this.permissionService.hasPermission(Permission.VIEW_SECTORS);
+        this.canExport$ = this.permissionService.hasPermission(Permission.EXPORT_DATA_TALENT);
+        const resolverData = this.activatedRoute.snapshot.data['sectorsResolver'];
+        this.sectors = resolverData?.[0]?.data || [];
+        this.categories = resolverData?.[1]?.data || [];
         console.log(this.categories);
 
         this.exportCSVData();
         this.formBuild();
-        // this.loadSectors({ first: 0, rows: this.rows });
+    }
+
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
     }
 
     exportCSV() {
@@ -98,19 +121,18 @@ export class SectorsComponent implements OnInit {
             status: row.status === 1 ? 'Active' : 'Inactive'
         }));
 
-        // temporarily replace table value
         const original = this.dt.value;
         this.dt.value = formatted;
         this.dt.exportCSV();
-        this.dt.value = original; // restore original
+        this.dt.value = original;
     }
 
     exportCSVData() {
         this.cols = [
             { field: 'id', header: '#' },
-            { field: 'name', header: 'sector (English)' },
-            { field: 'nameAr', header: 'sector (Arabic)' },
-            { field: 'categories', header: 'categories Name' },
+            { field: 'name', header: 'Sector (English)' },
+            { field: 'nameAr', header: 'Sector (Arabic)' },
+            { field: 'categories', header: 'Categories Name' },
             { field: 'created_at', header: 'Created At' },
             { field: 'updated_at', header: 'Updated At' },
             { field: 'status', header: 'Status' }
@@ -128,33 +150,43 @@ export class SectorsComponent implements OnInit {
 
     loadSectors(event: any) {
         console.log(event);
-        
+
         const page = event.first / event.rows + 1;
         const perPage = event.rows;
-        this.configurationService.getSectors(`?page=${page}&per_page=${perPage}`).subscribe({
-            next: (res) => {
-                this.sectors = res.data;
-                this.totalRecords = res.total;
-                this.page = res.current_page;
-            },
-            error: (error) => {
-                console.log(error);
-                this.messageService.add({
-                    severity: 'error',
-                    summary: 'Error',
-                    detail: 'Failed to load sectors',
-                    life: 3000
-                });
-            }
-        });
+
+        this.configurationService
+            .getSectors(`?page=${page}&per_page=${perPage}`)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (res) => {
+                    this.sectors = res.data;
+                    this.totalRecords = res.total;
+                    this.page = res.current_page;
+                },
+                error: (error) => {
+                    console.log(error);
+                    this.messageService.add({
+                        severity: 'error',
+                        summary: 'Error',
+                        detail: 'Failed to load sectors',
+                        life: 3000
+                    });
+                }
+            });
     }
 
     formBuild(sector?: any) {
+        // Extract category IDs from the sector's categories
+        let categoryIds: number[] = [];
+        if (sector?.categories && Array.isArray(sector.categories)) {
+            categoryIds = sector.categories.map((category: any) => category.id);
+        }
+
         this.sectorForm = this.fb.group({
-            categoryIds: [sector?.categoryIds || [], [Validators.required]],
+            categoryIds: [categoryIds || [], [Validators.required]],
             name: [sector?.name || '', [Validators.required, Validators.maxLength(50), Validators.minLength(3), CustomValidators.alpha()]],
             nameAr: [sector?.nameAr || '', [Validators.required, Validators.maxLength(255), Validators.minLength(3), CustomValidators.arabic()]],
-            status: [sector?.status || '', [Validators.required, Validators.maxLength(1)]]
+            status: [sector?.status || 1, [Validators.required]]
         });
     }
 
@@ -166,6 +198,7 @@ export class SectorsComponent implements OnInit {
     }
 
     editSector(sector: any) {
+        console.log('Editing sector:', sector);
         this.formBuild(sector);
         this.sector = { ...sector };
         this.sectorDialog = true;
@@ -177,17 +210,16 @@ export class SectorsComponent implements OnInit {
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                const deleteRequests = this.selectedSectors.map((sac) => this.configurationService.deleteSector(sac.id));
+                const deleteRequests = this.selectedSectors.map((sac) => this.configurationService.deleteSector(sac.id).toPromise());
 
-                // Run all delete requests
-                Promise.all(deleteRequests.map((req) => req.toPromise()))
+                Promise.all(deleteRequests)
                     .then(() => {
                         this.sectors = this.sectors.filter((val) => !this.selectedSectors.includes(val));
                         this.selectedSectors = [];
                         this.messageService.add({
                             severity: 'success',
                             summary: 'Successful',
-                            detail: 'sectors Deleted',
+                            detail: 'Sectors Deleted',
                             life: 3000
                         });
                     })
@@ -205,36 +237,52 @@ export class SectorsComponent implements OnInit {
 
     deleteSector(sector: any) {
         this.confirmationService.confirm({
-            message: 'Are you sure you want to delete ' + sector.name + '?',
+            message: `Are you sure you want to delete ${sector.name}?`,
             header: 'Confirm',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                this.configurationService.deleteSector(sector.id).subscribe({
-                    next: () => {
-                        this.sectors = this.sectors.filter((val) => val.id !== sector.id);
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Successful',
-                            detail: 'sector Deleted',
-                            life: 3000
-                        });
-                    },
-                    error: (error) => {
-                        console.log(error);
-                        this.messageService.add({
-                            severity: 'error',
-                            summary: 'Error',
-                            detail: 'Delete failed',
-                            life: 3000
-                        });
-                    }
-                });
+                this.configurationService
+                    .deleteSector(sector.id)
+                    .pipe(takeUntil(this.destroy$))
+                    .subscribe({
+                        next: () => {
+                            this.sectors = this.sectors.filter((val) => val.id !== sector.id);
+                            this.messageService.add({
+                                severity: 'success',
+                                summary: 'Successful',
+                                detail: 'Sector Deleted',
+                                life: 3000
+                            });
+                        },
+                        error: (error) => {
+                            console.log(error);
+                            const errorMessage = error.error?.message || error.message || 'Failed to delete sector';
+                            this.messageService.add({
+                                severity: 'error',
+                                summary: 'Error',
+                                detail: errorMessage,
+                                life: 3000
+                            });
+                        }
+                    });
             }
         });
     }
 
     saveSector() {
         this.submitted = true;
+
+        if (this.sectorForm.invalid) {
+            this.markFormFieldsAsTouched();
+            this.messageService.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'Please fill all required fields correctly',
+                life: 3000
+            });
+            return;
+        }
+
         const formValue = this.sectorForm.value;
 
         const obj = {
@@ -244,62 +292,85 @@ export class SectorsComponent implements OnInit {
             status: formValue.status
         };
 
-        console.log(obj);
+        console.log('Saving sector:', obj);
 
         if (this.sector.id) {
             // Update existing sector
-            this.configurationService.updateSector(this.sector.id, obj).subscribe({
-                next: (res: any) => {
-                    const index = this.sectors.findIndex((c) => c.id === this.sector.id);
-                    this.sectors[index] = res;
-                    this.messageService.add({
-                        severity: 'success',
-                        summary: 'Successful',
-                        detail: 'sector Updated',
-                        life: 3000
-                    });
-                    this.sectorDialog = false;
-                    this.sector = {};
-                },
-                error: (error) => {
-                    console.log(error);
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: 'Update failed',
-                        life: 3000
-                    });
-                }
-            });
+            this.configurationService
+                .updateSector(this.sector.id, obj)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res: any) => {
+                        const index = this.sectors.findIndex((c) => c.id === this.sector.id);
+                        if (index !== -1) {
+                            this.sectors[index] = res;
+                        }
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'Successful',
+                            detail: 'Sector Updated',
+                            life: 3000
+                        });
+                        this.sectorDialog = false;
+                        this.sector = {};
+                        if (this.dt) {
+                            this.dt.reset();
+                        }
+                    },
+                    error: (error) => {
+                        console.log(error);
+                        const errorMessage = error.error?.message || error.message || 'Failed to update sector';
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: errorMessage,
+                            life: 3000
+                        });
+                    }
+                });
         } else {
             // Create new sector
-            this.configurationService.createSector(obj).subscribe({
-                next: (res) => {
-                    this.sectors.push(res);
-                    this.messageService.add({
-                        severity: 'success',
-                        summary: 'Successful',
-                        detail: 'sector Created',
-                        life: 3000
-                    });
-                    this.sectorDialog = false;
-                    this.sector = {};
-                },
-                error: (error) => {
-                    console.log(error);
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: 'Create failed',
-                        life: 3000
-                    });
-                }
-            });
+            this.configurationService
+                .createSector(obj)
+                .pipe(takeUntil(this.destroy$))
+                .subscribe({
+                    next: (res) => {
+                        this.sectors.unshift(res);
+                        this.messageService.add({
+                            severity: 'success',
+                            summary: 'Successful',
+                            detail: 'Sector Created',
+                            life: 3000
+                        });
+                        this.sectorDialog = false;
+                        this.sector = {};
+                        if (this.dt) {
+                            this.dt.reset();
+                        }
+                    },
+                    error: (error) => {
+                        console.log(error);
+                        const errorMessage = error.error?.message || error.message || 'Failed to create sector';
+                        this.messageService.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: errorMessage,
+                            life: 3000
+                        });
+                    }
+                });
         }
+    }
+
+    private markFormFieldsAsTouched(): void {
+        Object.keys(this.sectorForm.controls).forEach((key) => {
+            this.sectorForm.get(key)?.markAsTouched();
+        });
     }
 
     hideDialog() {
         this.sectorDialog = false;
         this.submitted = false;
+        this.sectorForm?.reset();
     }
 }
