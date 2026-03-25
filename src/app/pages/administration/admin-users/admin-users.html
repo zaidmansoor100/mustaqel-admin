@@ -11,25 +11,15 @@
     </ng-template>
 </p-toolbar>
 
-<p-table #dt
-    [value]="users"
-    [lazy]="true"
-    [paginator]="true"
-    [rows]="10"
-    [totalRecords]="totalRecords"
-    (onLazyLoad)="loadUsers($event)"
-    [globalFilterFields]="['name', 'nameAr', 'status']"
-    [tableStyle]="{ 'min-width': '75rem' }"
-    [(selection)]="selectedUsers"
-    [rowHover]="true"
-    dataKey="id"
-    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} users"
-    [showCurrentPageReport]="true"
+<p-table #dt [value]="users" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
+    (onLazyLoad)="loadUsers($event)" [globalFilterFields]="['name', 'nameAr', 'email', 'status']"
+    [tableStyle]="{ 'min-width': '75rem' }" [(selection)]="selectedUsers" [rowHover]="true" dataKey="id"
+    currentPageReportTemplate="Showing {first} to {last} of {totalRecords} users" [showCurrentPageReport]="true"
     [rowsPerPageOptions]="[10, 20, 30]">
 
     <ng-template #caption>
         <div class="flex items-center justify-between">
-            <h5 class="m-0">Manage Users</h5>
+            <h5 class="m-0">Manage Admin Users</h5>
             <p-iconfield>
                 <p-inputicon styleClass="pi pi-search" />
                 <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search..." />
@@ -55,8 +45,7 @@
             <td>{{ user.created_at | date:'short' }}</td>
             <td>{{ user.updated_at | date:'short' }}</td>
             <td>
-                <p-tag [severity]="user.status === 1 ? 'success' : 'danger'"
-                    [value]="user.status === 1 ? 'Active' : 'Inactive'" />
+                <p-tag [severity]="user.status === 'active' ? 'success' : 'danger'" [value]="user.status | uppercase" />
             </td>
             <td>
                 <p-button icon="pi pi-pencil" class="mr-2" [rounded]="true" [outlined]="true"
@@ -68,23 +57,101 @@
     </ng-template>
 </p-table>
 
-<p-dialog [(visible)]="userDialog" [style]="{ width: '600px' }" header="User Details" [modal]="true">
+<p-dialog [(visible)]="userDialog" [style]="{ width: '700px' }" header="User Details" [modal]="true">
     <ng-template #content>
         <div class="grid grid-cols-2 gap-6" [formGroup]="userForm">
-            <div class="mb-4">
-                <label for="name" class="block font-bold mb-3">Name (English)</label>
-                <input class="w-full"  type="text" pInputText id="name" required autofocus formControlName="name" />
+            <!-- Personal Information Section -->
+            <div class="col-span-2 mb-2">
+                <h3 class="font-bold text-lg border-b pb-2">Personal Information</h3>
             </div>
 
             <div class="mb-4">
-                <label for="nameAr" class="block font-bold mb-3">Name (Arabic)</label>
-                <input class="w-full"  type="text" pInputText id="nameAr" required  formControlName="nameAr"/>
+                <label for="name" class="block font-bold mb-3">Name (English)</label>
+                <input class="w-full" type="text" pInputText id="name" required autofocus formControlName="name" />
+                <small class="text-red-500" *ngIf="userForm.get('name')?.invalid && userForm.get('name')?.touched">
+                    Name is required (3-50 characters, letters only)
+                </small>
+            </div>
+
+            <div class="mb-4">
+                <label for="nameArabic" class="block font-bold mb-3">Name (Arabic)</label>
+                <input class="w-full" type="text" pInputText id="nameArabic" required formControlName="nameArabic" />
+                <small class="text-red-500"
+                    *ngIf="userForm.get('nameArabic')?.invalid && userForm.get('nameArabic')?.touched">
+                    Arabic name is required (3-255 characters)
+                </small>
+            </div>
+
+            <div class="mb-4">
+                <label for="email" class="block font-bold mb-3">Email</label>
+                <input class="w-full" type="email" pInputText id="email" required formControlName="email" />
+                <small class="text-red-500" *ngIf="userForm.get('email')?.invalid && userForm.get('email')?.touched">
+                    Valid email is required
+                </small>
             </div>
 
             <div class="mb-4">
                 <label for="status" class="block font-bold mb-3">Status</label>
-                <p-select appendTo="body" [options]="status" optionLabel="name" optionValue="id" 
-                    placeholder="Status" class="w-full" required  formControlName="status"/>
+                <p-select appendTo="body" [options]="statusOptions" optionLabel="name" optionValue="value"
+                    placeholder="Status" class="w-full" required formControlName="status" />
+            </div>
+
+            <div class="mb-4" *ngIf="!currentUser?.id">
+                <label for="password" class="block font-bold mb-3">Password</label>
+                <input class="w-full" type="password" pInputText id="password" formControlName="password" />
+                <small class="text-red-500"
+                    *ngIf="userForm.get('password')?.invalid && userForm.get('password')?.touched">
+                    Password must be at least 8 characters
+                </small>
+            </div>
+
+            <div class="mb-4" *ngIf="!currentUser?.id">
+                <label for="confirmPassword" class="block font-bold mb-3">Confirm Password</label>
+                <input class="w-full" type="password" pInputText id="confirmPassword"
+                    formControlName="confirmPassword" />
+                <small class="text-red-500"
+                    *ngIf="userForm.get('confirmPassword')?.invalid && userForm.get('confirmPassword')?.touched">
+                    Passwords do not match
+                </small>
+            </div>
+
+            <!-- Level Section -->
+            <div class="col-span-2 mt-4 mb-2">
+                <h3 class="font-bold text-lg border-b pb-2">Role Assignment</h3>
+            </div>
+
+            <div class="col-span-2 mb-4">
+                <div formArrayName="levels">
+                    <div *ngFor="let level of levelsArray.controls; let i = index" [formGroupName]="i"
+                        class="border rounded p-4 mb-3">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-bold">Level {{ i + 1 }}</h4>
+                            <p-button icon="pi pi-trash" severity="danger" text rounded (click)="removeLevel(i)"
+                                *ngIf="levelsArray.length > 1"></p-button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block font-bold mb-2">Role Name</label>
+                                <input type="text" pInputText formControlName="name" class="w-full"
+                                    placeholder="e.g., manager" />
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-2">Role Type</label>
+                                <p-select [options]="roles" optionLabel="name" optionValue="name" formControlName="role"
+                                    placeholder="Select Role Type" class="w-full"
+                                    (onChange)="onRoleChange($event.value, i)">
+                                </p-select>
+                            </div>
+                            <div>
+                                <label class="block font-bold mb-2">Position</label>
+                                <p-select [options]="getPositionOptionsForRole(level.get('role')?.value)"
+                                    formControlName="position" placeholder="Select Position" class="w-full">
+                                </p-select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p-button label="Add Level" icon="pi pi-plus" text (click)="addLevel()" class="mt-2"></p-button>
             </div>
         </div>
     </ng-template>

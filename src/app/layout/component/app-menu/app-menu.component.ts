@@ -97,7 +97,7 @@ export class AppMenuComponent {
                                 routerLink: ['/pages/administration/applicant-users']
                             },
                             {
-                                label: 'Entity & Incubator Users',
+                                label: 'Entities Users',
                                 icon: 'pi pi-user',
                                 routerLink: ['/pages/administration/entity-users']
                             }

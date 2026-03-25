@@ -63,4 +63,20 @@ export class AdministrationService extends CoreService {
         return this.get(`admin/roles-by-type/${type}`);
     }
 
+    // ----------------------------
+    // Permissions CRUD
+    // ----------------------------
+
+    getAllPermissions(): Observable<any> {
+        return this.get(`admin/permissions`);
+    }
+
+    getPermissionByRoleId( id: any): Observable<any> {
+        return this.get(`admin/permissions/roles/${id}`);
+    }
+
+    getPermissionByUserId( id: any): Observable<any> {
+        return this.get(`admin/permissions/users/${id}`);
+    }
+
 }

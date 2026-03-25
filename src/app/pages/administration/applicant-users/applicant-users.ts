@@ -77,13 +77,13 @@ export class ApplicantUsers implements OnInit {
 
     exportCSV() {
         // Flatten any fields for export
-        const formatted = this.users.map((row: any) => ({
-            ...row,
-            status: row.status === 1 ? 'Active' : 'Inactive'
-        }));
+        // const formatted = this.users.map((row: any) => ({
+        //     ...row,
+        //     status: row.status === 1 ? 'Active' : 'Inactive'
+        // }));
 
         const original = this.dt.value;
-        this.dt.value = formatted;
+        // this.dt.value = formatted;
         this.dt.exportCSV();
         this.dt.value = original; // restore original
     }
@@ -91,8 +91,8 @@ export class ApplicantUsers implements OnInit {
     exportCSVData() {
         this.cols = [
             { field: 'id', header: '#' },
-            { field: 'name', header: 'Category (English)' },
-            { field: 'nameAr', header: 'Category (Arabic)' },
+            { field: 'name', header: 'Applicant Name (English)' },
+            { field: 'nameAr', header: 'Applicant Name (Arabic)' },
             { field: 'email', header: 'Email' },
             { field: 'created_at', header: 'Created At' },
             { field: 'updated_at', header: 'Updated At' },
