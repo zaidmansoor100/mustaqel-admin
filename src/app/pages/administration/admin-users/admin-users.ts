@@ -12,7 +12,7 @@ import { DialogModule } from 'primeng/dialog';
 import { InputIconModule } from 'primeng/inputicon';
 import { IconFieldModule } from 'primeng/iconfield';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TagModule } from 'primeng/tag';
 import { SelectModule } from 'primeng/select';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -23,6 +23,8 @@ import { finalize, Subject, takeUntil } from 'rxjs';
 import { PermissionDirective } from '@/directives/permission.directive';
 import { PermissionService } from '@/services/permission.service';
 import { Permission } from '@/enums/permission.enum';
+import { AuthService } from '@/services/http/auth.service';
+import { PermissionSyncService } from '@/services/permission-sync.service';
 
 // Custom validator for password match
 export const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
@@ -160,7 +162,11 @@ export class AdminUsers implements OnInit, OnDestroy {
         private administrationService: AdministrationService,
         private activatedRoute: ActivatedRoute,
         private fb: FormBuilder,
-        private permissionService: PermissionService
+        private permissionService: PermissionService,
+        private authService: AuthService,
+        
+        private router: Router,
+        private permissionSyncService: PermissionSyncService
     ) {}
 
     ngOnInit(): void {
@@ -490,6 +496,18 @@ export class AdminUsers implements OnInit, OnDestroy {
                     .subscribe({
                         next: () => {
                             this.users = this.users.filter((u) => u.id !== user.id);
+                            const currentLoggedInUser = this.authService.getCurrentUser();
+                            if (currentLoggedInUser && currentLoggedInUser.id === user.id) {
+                                // Current user deleted - logout
+                                this.authService.logout().subscribe(() => {
+                                    this.router.navigate(['/auth/login']);
+                                    this.showSuccess('Your account has been deleted. Logging out...');
+                                });
+                            } else {
+                                // Other user deleted - just refresh permissions
+                                this.permissionSyncService.triggerManualRefresh();
+                                this.showSuccess('User Deleted Successfully');
+                            }
                             this.showSuccess('User Deleted Successfully');
                         },
                         error: (error) => this.handleError(error, 'Failed to delete user')
@@ -504,15 +522,26 @@ export class AdminUsers implements OnInit, OnDestroy {
             header: 'Confirm Deletion',
             icon: 'pi pi-exclamation-triangle',
             accept: () => {
-                const deleteRequests = this.selectedUsers.map((user) => 
-                    this.administrationService.deleteUser('jusour', user.id!).toPromise()
-                );
+                const deleteRequests = this.selectedUsers.map((user) => this.administrationService.deleteUser('jusour', user.id!).toPromise());
 
                 Promise.all(deleteRequests)
                     .then(() => {
-                        this.users = this.users.filter((user) => !this.selectedUsers.includes(user));
-                        this.selectedUsers = [];
-                        this.showSuccess('Users Deleted Successfully');
+                        const currentLoggedInUser = this.authService.getCurrentUser();
+                        const isCurrentUserDeleted = this.selectedUsers.some(
+                            user => currentLoggedInUser && user.id === currentLoggedInUser.id
+                        );
+                        
+                        if (isCurrentUserDeleted) {
+                            this.authService.logout().subscribe(() => {
+                                this.router.navigate(['/auth/login']);
+                                this.showSuccess('Your account has been deleted. Logging out...');
+                            });
+                        } else {
+                            this.users = this.users.filter((user) => !this.selectedUsers.includes(user));
+                            this.selectedUsers = [];
+                            this.permissionSyncService.triggerManualRefresh();
+                            this.showSuccess('Users Deleted Successfully');
+                        }
                     })
                     .catch(() => this.showError('Some deletes failed'));
             }

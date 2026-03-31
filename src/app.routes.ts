@@ -1,4 +1,4 @@
-// src/app/app.routes.ts (or wherever appRoutes is defined)
+// src/app/app.routes.ts
 import { Routes } from '@angular/router';
 import { AppLayoutComponent } from '@/layout/component/app-layout/app-layout.component';
 import { DashboardComponent } from '@/pages/dashboard/dashboard.component';
@@ -14,15 +14,22 @@ export const appRoutes: Routes = [
         resolve: {
             userResolver: UserResolver
         },
+        runGuardsAndResolvers: 'always', // 👈 This ensures resolver runs on every navigation
         children: [
             {
                 path: '',
-                component: DashboardComponent
+                component: DashboardComponent,
+                data: {
+                    permissions: ['view-talent-application-statistacs', 'view-entrepreneur-application-statistacs', 'view-investor-application-statistacs', 'view-executive-application-statistacs', 'view-monthly-statistacs'],
+                    permissionMode: 'any',
+                    showMessage: false
+                },
+                canActivate: [PermissionGuard]
             },
             {
                 path: 'pages',
                 loadChildren: () => import('./app/pages/pages.routes'),
-                canActivateChild: [PermissionGuard] // This will protect all child routes
+                canActivateChild: [PermissionGuard]
             }
         ]
     },

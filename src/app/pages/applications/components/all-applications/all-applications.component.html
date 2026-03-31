@@ -1,16 +1,23 @@
+<!-- Toolbar with permission-based buttons -->
 <p-toolbar styleClass="mb-4">
     <ng-template #start>
-        <p-button label="New" icon="pi pi-plus" severity="secondary" class="mr-2" (onClick)="navigateToCreate()" />
+        <!-- New button - only visible if user has CREATE permission -->
+        <p-button *appPermission="getCreatePermission()" label="New" icon="pi pi-plus" severity="secondary" class="mr-2"
+            (onClick)="navigateToCreate()" />
 
-        <p-button label="Delete" icon="pi pi-trash" outlined severity="secondary" (onClick)="deleteSelectedRequests()"
-            [disabled]="!selectedRequests || !selectedRequests.length" />
+        <!-- Delete button - only visible if user has DELETE permission -->
+        <p-button *appPermission="getDeletePermission()" label="Delete" icon="pi pi-trash" outlined severity="secondary"
+            (onClick)="deleteSelectedRequests()" [disabled]="!selectedRequests || !selectedRequests.length" />
     </ng-template>
 
     <ng-template #end>
-        <p-button label="Export" icon="pi pi-upload" severity="secondary" (onClick)="exportCSV()" />
+        <!-- Export button - only visible if user has EXPORT permission -->
+        <p-button *appPermission="Permission.EXPORT_DATA_TALENT" label="Export" icon="pi pi-upload" severity="secondary"
+            (onClick)="exportCSV()" />
     </ng-template>
 </p-toolbar>
 
+<!-- Requests Table -->
 <p-table #dt [value]="requests" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
     (onLazyLoad)="loadRequests($event)" [globalFilterFields]="['requestId', 'applicantName', 'status']"
     [(selection)]="selectedRequests" dataKey="id" [rowHover]="true"
@@ -19,8 +26,8 @@
     <ng-template #caption>
         <div class="flex items-center justify-between">
             <h5 class="m-0">
-                {{ 'Manage ' + (catSlug == 'tal' ? 'Talent' : catSlug == 'ent' ? 'Entrepreneur' : catSlug == 'inv' ? 'Investor' :'Executive') + '
-                Requests' }}
+                {{ 'Manage ' + (catSlug == 'tal' ? 'Talent' : catSlug == 'ent' ? 'Entrepreneur' : catSlug == 'inv' ?
+                'Investor' : 'Executive') + ' Requests' }}
             </h5>
             <p-iconfield>
                 <p-inputicon styleClass="pi pi-search"></p-inputicon>
@@ -31,24 +38,31 @@
 
     <ng-template #header>
         <tr>
-            <th><p-tableHeaderCheckbox /></th>
+            <!-- Checkbox column - only visible if user has DELETE permission -->
+            <th *appPermission="getDeletePermission()">
+                <p-tableHeaderCheckbox />
+            </th>
             <th *ngFor="let col of cols" [pSortableColumn]="col.field">
                 {{ col.header }}
             </th>
-            <th></th>
+            <!-- Actions column - only visible if user has VIEW, EDIT, or DELETE permission -->
+            <th *appPermission="[getViewPermission(), getEditPermission(), getDeletePermission()]"
+                appPermissionMode="any">Actions</th>
         </tr>
     </ng-template>
 
     <ng-template #body let-request>
         <tr>
-            <td><p-tableCheckbox [value]="request"></p-tableCheckbox></td>
+            <!-- Checkbox - only visible if user has DELETE permission -->
+            <td *appPermission="getDeletePermission()">
+                <p-tableCheckbox [value]="request"></p-tableCheckbox>
+            </td>
             <td>{{ request.reqReferenceNumber || 'Assign after submission' }}</td>
             <td>{{ request.nameEn || 'N/A'}}</td>
             <td>{{ request?.category?.name || 'N/A' }}</td>
             <td>{{ request?.sector?.name || 'N/A'}}</td>
             <td>{{ request?.activity?.name || 'N/A' }}</td>
             <td>{{ request.created_at | date:'short' }}</td>
-
             <td>
                 <p-tag [value]="request.statuses?.application?.status || 'N/A'"
                     [severity]="getSeverity(request.statuses?.application?.status)"></p-tag>
@@ -58,56 +72,61 @@
                     [severity]="getSeverity(request.statuses?.jusour?.status)"></p-tag>
             </td>
 
+            <!-- Action buttons - only visible based on permissions -->
+            <td style="white-space: nowrap;"
+                *appPermission="[getViewPermission(), getEditPermission(), getDeletePermission()]"
+                appPermissionMode="any">
+                <!-- View button - only visible if user has VIEW permission -->
+                <ng-container *appPermission="getViewPermission()">
+                    <p-button icon="pi pi-eye" class="mr-2"
+                        *ngIf="request.statuses?.application?.status && request.statuses?.application?.status.toLowerCase() !== 'draft'"
+                        [rounded]="true" [outlined]="true" (click)="navigateToView(request.id)" />
+                </ng-container>
 
-            <td style="white-space: nowrap;">
-                <p-button icon="pi pi-eye" class="mr-2"
-                    *ngIf="request.statuses?.application?.status && request.statuses?.application?.status.toLowerCase() !== 'draft'"
-                    [rounded]="true" [outlined]="true" (click)="navigateToView(request.id)" />
 
-                <p-button icon="pi pi-pencil" class="mr-2"
-                    *ngIf="request.statuses?.jusour?.status.toLowerCase() !== 'approved' && request.statuses?.jusour?.status.toLowerCase() !== 'rejected'"
-                    [rounded]="true" [outlined]="true" (click)="openStatusDialog(request)" />
+                <!-- Edit/Update Status button - only visible if user has EDIT/APPROVE permission -->
+                <ng-container *appPermission="getUpdateStatusPermission()">
+                    <p-button icon="pi pi-pencil" class="mr-2"
+                        *ngIf="request.statuses?.jusour?.status.toLowerCase() !== 'approved' && request.statuses?.jusour?.status.toLowerCase() !== 'rejected'"
+                        [rounded]="true" [outlined]="true" (click)="openStatusDialog(request)" />
+                </ng-container>
 
+
+                <!-- Delete button - only visible if user has DELETE permission -->
                 <p-button icon="pi pi-trash" severity="danger" [rounded]="true" [outlined]="true"
-                    (click)="deleteRequest(request)" />
+                    *appPermission="getDeletePermission()" (click)="deleteRequest(request)" />
             </td>
         </tr>
     </ng-template>
 
     <ng-template #emptymessage>
         <tr>
-            <td colspan="9">No requests found.</td>
+            <td colspan="10">No requests found.</td>
         </tr>
     </ng-template>
 
 </p-table>
 
+<!-- Status Update Dialog -->
 <p-dialog header="Update Application Status" [(visible)]="statusDialogVisible" [modal]="true"
     [className]="'dialog-overflow'" [style]="{ width: '400px' }">
     <ng-template #content>
         <form [formGroup]="updateStatus" class="w-full">
             <div class="grid grid-col gap-3">
-                <div class="mb-2" >
+                <div class="mb-2">
                     <label for="status" class="block font-bold mb-3">Status</label>
-                    <p-select [options]="statusOptions" formControlName="status"  placeholder="Select Status"
+                    <p-select [options]="statusOptions" formControlName="status" placeholder="Select Status"
                         [filter]="true" optionLabel="label" optionValue="value" class="w-full" inputId="status">
                     </p-select>
                 </div>
 
-                <!-- <div class="mb-4">
-                    <label for="reason" class="block font-bold mb-3">Reason</label>  
-                    <textarea pTextarea  rows="4" [(ngModel)]="statusReason" placeholder="Enter reason" class="w-full"
-                        inputId="reason"></textarea>
-                </div> -->
                 <!-- Comment EN -->
-                <div class="flex flex-col gap-1  ">
+                <div class="flex flex-col gap-1">
                     <label for="commentEn" class="font-bold">
                         Comment (EN) <span class="text-red-600">*</span>
                     </label>
-
                     <textarea pTextarea rows="4" inputId="commentEn" formControlName="commentsEn"
-                        placeholder="Enter comment" class="w-full">
-                </textarea>
+                        placeholder="Enter comment" class="w-full"></textarea>
 
                     <div *ngIf="updateStatus.get('commentsEn')?.touched && updateStatus.get('commentsEn')?.invalid"
                         class="text-red-600 text-sm">
@@ -128,14 +147,12 @@
                 </div>
 
                 <!-- Comment AR -->
-                <div class="flex flex-col gap-1 ">
-                    <label for="commentAr" class="font-bold">   
+                <div class="flex flex-col gap-1">
+                    <label for="commentAr" class="font-bold">
                         Comment (AR)
                     </label>
-
-                    <textarea pTextarea rows="4" inputId="commentAr" formControlName="commentsAr" placeholder="أدخل التعليق"
-                        class="w-full">
-            </textarea>
+                    <textarea pTextarea rows="4" inputId="commentAr" formControlName="commentsAr"
+                        placeholder="أدخل التعليق" class="w-full"></textarea>
 
                     <small class="text-gray-500">
                         {{ updateStatus.get('commentsAr')?.value?.length || 0 }}/200
@@ -147,7 +164,7 @@
 
     <ng-template #footer>
         <p-button label="Cancel" icon="pi pi-times" text (click)="statusDialogVisible=false" />
-        <p-button label="Update" icon="pi pi-check" (click)="updateRequestStatus()" />
+        <p-button label="Update" icon="pi pi-check" [disabled]="updateStatus.invalid" (click)="updateRequestStatus()" />
     </ng-template>
 </p-dialog>
 

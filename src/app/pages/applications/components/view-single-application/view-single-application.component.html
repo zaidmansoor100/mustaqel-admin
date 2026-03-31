@@ -13,18 +13,25 @@
                         'N/A' }}</strong> </p>
             </div>
             <div class="flex gap-2 mt-2 md:mt-0">
-                <button pButton icon="pi pi-pencil" label="Edit Application" class="p-button-rounded p-button-info"
-                    *ngIf="isDraft">
-                </button>
+                <ng-container *appPermission="getEditPermission()">
+                    <button pButton icon="pi pi-pencil" label="Edit Application" class="p-button-rounded p-button-info"
+                        *ngIf="isDraft">
+                    </button>
+                </ng-container>
 
                 <!-- QC Action Button -->
-                <button pButton icon="pi pi-play-circle" label="Start QC" class="p-button-rounded p-button-warning"
-                    *ngIf="isButtonVisible('START_QC')" (click)="startqc()">
-                </button>
-                <button pButton icon="pi pi-check-circle" label="Approved QC" class="p-button-rounded p-button-success"
-                    *ngIf="isButtonVisible('APPROVED_QC')" (click)="confirm1($event)">
-                </button>
+                <ng-container *appPermission="Permission.REQUEST_QUALITY_CHECKS">
+                    <button pButton icon="pi pi-play-circle" label="Start QC" class="p-button-rounded p-button-warning"
+                        *ngIf="isButtonVisible('START_QC')" (click)="startqc()">
+                    </button>
+                </ng-container>
 
+                <ng-container *appPermission="Permission.APPROVE_QUALITY_CHECKS">
+                    <button pButton icon="pi pi-check-circle" label="Approved QC"
+                        class="p-button-rounded p-button-success" *ngIf="isButtonVisible('APPROVED_QC')"
+                        (click)="confirm1($event)">
+                    </button>
+                </ng-container>
             </div>
         </div>
 
@@ -114,6 +121,7 @@
                         <span>{{ request.qualityCheck.verifiedAt | date:'medium' }}</span>
                     </div>
                     <button pButton icon="pi pi-eye" label="View QC Details"
+                        *appPermission="Permission.VIEW_QUALITY_CHECKS"
                         class="p-button-outlined p-button-sm w-full mt-2" (click)="showqcDetails = true">
                     </button>
 
@@ -1047,12 +1055,13 @@
         <p class="text-xs !mb-0 text-gray-500" *ngIf="qcProgress.checked < qcProgress.total">
             Complete all field checks to submit QC
         </p>
-        <div class="flex gap-2"> 
+        <div class="flex gap-2">
             <button pButton icon="pi pi-check" label="Submit QC" class="p-button-success p-button-sm"
+                *appPermission="Permission.APPROVE_QUALITY_CHECKS"
                 [disabled]="qcProgress.checked < qcProgress.total || qcProgress.total === 0"
                 (click)="submitqc()"></button>
             <button pButton icon="pi pi-times" label="Cancel QC" class="p-button-danger p-button-sm"
-                (click)="cancelqc()"></button>
+                *appPermission="Permission.REQUEST_QUALITY_CHECKS" (click)="cancelqc()"></button>
         </div>
     </div>
 </div>

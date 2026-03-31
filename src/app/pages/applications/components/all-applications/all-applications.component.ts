@@ -1,4 +1,5 @@
-import { Component, Input, OnInit, ViewChild } from '@angular/core';
+// src/app/pages/applications/components/all-applications/all-applications.component.ts
+import { Component, Input, OnInit, ViewChild, OnDestroy } from '@angular/core';
 import { Table, TableModule } from 'primeng/table';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { RequestService } from '@/services/request.service';
@@ -17,17 +18,36 @@ import { DialogModule } from 'primeng/dialog';
 import { TextareaModule } from 'primeng/textarea';
 import { FormsModule, FormBuilder, FormControl, Validators, ReactiveFormsModule, FormGroup } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
+import { PermissionDirective } from '@/directives/permission.directive';
+import { PermissionService } from '@/services/permission.service';
+import { Permission } from '@/enums/permission.enum';
 
 @Component({
     selector: 'applications-index',
     templateUrl: './all-applications.component.html',
     styleUrl: './all-applications.component.scss',
-    imports: [DialogModule, CommonModule, TableModule, TextareaModule, TagModule, IconFieldModule,
-        InputTextModule, InputIconModule, MultiSelectModule, SelectModule, SharedModule, RouterModule,
-        Toolbar, ConfirmDialog, ReactiveFormsModule, FormsModule],
+    imports: [
+        DialogModule,
+        CommonModule,
+        TableModule,
+        TextareaModule,
+        TagModule,
+        IconFieldModule,
+        InputTextModule,
+        InputIconModule,
+        MultiSelectModule,
+        SelectModule,
+        SharedModule,
+        RouterModule,
+        Toolbar,
+        ConfirmDialog,
+        ReactiveFormsModule,
+        FormsModule,
+        PermissionDirective
+    ],
     providers: [MessageService, ConfirmationService]
 })
-export class AllApplicationsComponent implements OnInit {
+export class AllApplicationsComponent implements OnInit, OnDestroy {
     @ViewChild('dt') dt!: Table;
 
     requests: any = [];
@@ -44,7 +64,7 @@ export class AllApplicationsComponent implements OnInit {
         { field: 'activityName', header: 'Activity' },
         { field: 'createdDate', header: 'Created Date' },
         { field: 'status', header: 'Application Status' },
-        { field: 'jStatus', header: 'Jusour Status' },
+        { field: 'jStatus', header: 'Jusour Status' }
     ];
 
     // Dialog visibility & form fields
@@ -53,7 +73,6 @@ export class AllApplicationsComponent implements OnInit {
     selectedStatus: string | null = null;
     statusReason: string = '';
 
-
     // FormGroup
     updateStatus!: FormGroup;
 
@@ -61,18 +80,20 @@ export class AllApplicationsComponent implements OnInit {
     statusOptions = [
         { label: 'Approved', value: 'Approved' },
         { label: 'Rejected', value: 'Rejected' },
-        // { label: 'Pending', value: 'Pending' },
         { label: 'On Hold', value: 'On Hold' },
         { label: 'Under Review', value: 'Under Review status' }
     ];
 
-    cities = [
-        { name: 'New York', code: 'NY' },
-        { name: 'Rome', code: 'RM' },
-        { name: 'London', code: 'LDN' },
-        { name: 'Istanbul', code: 'IST' },
-        { name: 'Paris', code: 'PRS' }
-    ];
+    // Permission flags for UI
+    canCreate$: any;
+    canDelete$: any;
+    canView$: any;
+    canEdit$: any;
+    canExport$: any;
+    canUpdateStatus$: any;
+
+    // Make Permission enum available in template
+    Permission = Permission;
 
     constructor(
         private requestService: RequestService,
@@ -80,12 +101,99 @@ export class AllApplicationsComponent implements OnInit {
         private confirmationService: ConfirmationService,
         private router: Router,
         private route: ActivatedRoute,
-        private fb: FormBuilder
-    ) { }
+        private fb: FormBuilder,
+        private permissionService: PermissionService
+    ) {}
 
     ngOnInit() {
+        this.canCreate$ = this.permissionService.hasPermission(this.getCreatePermission());
+        this.canDelete$ = this.permissionService.hasPermission(this.getDeletePermission());
+        this.canView$ = this.permissionService.hasPermission(this.getViewPermission());
+        this.canEdit$ = this.permissionService.hasPermission(this.getEditPermission());
+        this.canExport$ = this.permissionService.hasPermission(Permission.EXPORT_DATA_TALENT);
+        this.canUpdateStatus$ = this.permissionService.hasPermission(this.getUpdateStatusPermission());
         this.loadRequests({ first: 0, rows: 10 });
-        this.buildCommentForm()
+        this.buildCommentForm();
+    }
+
+    ngOnDestroy(): void {
+        this.destroy$.next();
+        this.destroy$.complete();
+    }
+
+    getCreatePermission(): string {
+        switch (this.catSlug) {
+            case 'tal':
+                return Permission.CREATE_TALENT;
+            case 'ent':
+                return Permission.CREATE_ENTREPRENEUR;
+            case 'inv':
+                return Permission.CREATE_INVESTOR;
+            case 'exe':
+                return Permission.CREATE_EXECUTIVE;
+            default:
+                return Permission.CREATE_TALENT;
+        }
+    }
+
+    getDeletePermission(): string {
+        switch (this.catSlug) {
+            case 'tal':
+                return Permission.DELETE_TALENT;
+            case 'ent':
+                return Permission.DELETE_ENTREPRENEUR;
+            case 'inv':
+                return Permission.DELETE_INVESTOR;
+            case 'exe':
+                return Permission.DELETE_EXECUTIVE;
+            default:
+                return Permission.DELETE_TALENT;
+        }
+    }
+
+    getViewPermission(): string {
+        switch (this.catSlug) {
+            case 'tal':
+                return Permission.VIEW_TALENT;
+            case 'ent':
+                return Permission.VIEW_ENTREPRENEUR;
+            case 'inv':
+                return Permission.VIEW_INVESTOR;
+            case 'exe':
+                return Permission.VIEW_EXECUTIVE;
+            default:
+                return Permission.VIEW_TALENT;
+        }
+    }
+
+    getEditPermission(): string {
+        switch (this.catSlug) {
+            case 'tal':
+                return Permission.EDIT_TALENT;
+            case 'ent':
+                return Permission.EDIT_ENTREPRENEUR;
+            case 'inv':
+                return Permission.EDIT_INVESTOR;
+            case 'exe':
+                return Permission.EDIT_EXECUTIVE;
+            default:
+                return Permission.EDIT_TALENT;
+        }
+    }
+
+    getUpdateStatusPermission(): string {
+        switch (this.catSlug) {
+            case 'tal':
+                return Permission.APPROVE_TALENT;
+            case 'ent':
+                return Permission.APPROVE_ENTREPRENEUR;
+            case 'inv':
+                return Permission.APPROVE_INVESTOR;
+            case 'exe':
+                return Permission.APPROVE_EXECUTIVE;
+            default:
+                return Permission.APPROVE_TALENT;
+        }
     }
 
     loadRequests(event: any) {
@@ -96,9 +204,8 @@ export class AllApplicationsComponent implements OnInit {
             next: (res) => {
                 const all = res.data?.request?.data || [];
 
-                // ✅ Only include TAL category
+                // Filter by category slug
                 this.requests = all.filter((r: any) => String(r.category?.slug).toLowerCase() === this.catSlug);
-
                 this.totalRecords = this.requests.length;
             }
         });
@@ -119,10 +226,6 @@ export class AllApplicationsComponent implements OnInit {
     navigateToCreate() {
         this.router.navigate(['create'], { relativeTo: this.route });
     }
-
-    // navigateToEdit(id: number) {
-    //     this.router.navigate(['edit', id], { relativeTo: this.route });
-    // }
 
     deleteRequest(request: any) {
         // this.confirmationService.confirm({
@@ -168,65 +271,33 @@ export class AllApplicationsComponent implements OnInit {
     }
 
     openStatusDialog(request: any) {
-
         this.selectedRequest = request;
-        console.log(request?.statuses?.application?.status, 'status');
-
         this.selectedStatus = request?.statuses?.application?.status || null;
         this.statusReason = '';
         this.statusDialogVisible = true;
     }
 
-
     buildCommentForm(): void {
         this.updateStatus = this.fb.group({
-            status: [Validators.required],
-            commentsEn: [
-                '',
-                [
-                    Validators.required,
-                    Validators.minLength(3),
-                    Validators.maxLength(200)
-                ]
-            ],
-            commentsAr: [
-                '',
-                [
-                    Validators.minLength(3),
-                    Validators.maxLength(200)
-                ]
-            ]
+            status: ['', Validators.required],
+            commentsEn: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(200)]],
+            commentsAr: ['', [Validators.minLength(3), Validators.maxLength(200)]]
         });
     }
 
-    // Update status (call API or update locally)
-    // updateRequestStatus() {
-    //     if (!this.selectedRequest || !this.selectedStatus) return;
-
-    //     // Replace with API call if needed
-    //     this.selectedRequest.statuses.application.status = this.selectedStatus;
-    //     this.selectedRequest.statuses.application.reason = this.statusReason;
-
-    //     this.messageService.add({ severity: 'success', summary: 'Updated', detail: 'Request status updated' });
-
-    //     // Close dialog
-    //     this.statusDialogVisible = false;
-    // }
-
     async updateRequestStatus() {
-        if (this.updateStatus.invalid || !this.selectedRequest || !this.selectedStatus) {
-            console.warn('Form invalid', this.updateStatus);
+        if (this.updateStatus.invalid || !this.selectedRequest) {
             return;
         }
-        // console.log(this.selectedRequest)
-        const id = this.selectedRequest?.id
-        const val = this.updateStatus.value
-        console.log(this.requests, 'before')
+
+        const id = this.selectedRequest?.id;
+        const val = this.updateStatus.value;
+
         try {
             const payload = {
                 status: val.status,
                 commentsEn: val.commentsEn,
-                commentsAr: val.commentsAr,
+                commentsAr: val.commentsAr
             };
 
             const response: any = await this.requestService.requestUpdateStatus(payload, id).pipe(takeUntil(this.destroy$)).toPromise();
@@ -234,14 +305,11 @@ export class AllApplicationsComponent implements OnInit {
             this.messageService.add({
                 severity: 'success',
                 summary: 'Status',
-                detail: `Request has been   successfully`
+                detail: `Request has been ${val.status} successfully`
             });
 
-            this.selectedRequest.statuses = Object.keys(
-                response.data?.request?.status || {}
-            ).reduce((acc: any, key: string) => {
+            this.selectedRequest.statuses = Object.keys(response.data?.request?.status || {}).reduce((acc: any, key: string) => {
                 const item = response.data.request.status[key]?.[0];
-
                 if (item) {
                     acc[key] = {
                         status: item.status,
@@ -250,11 +318,10 @@ export class AllApplicationsComponent implements OnInit {
                         role: item.role
                     };
                 }
-
                 return acc;
             }, {});
 
-            this.statusDialogVisible = false
+            this.statusDialogVisible = false;
         } catch (error) {
             console.error('status:', error);
             this.messageService.add({

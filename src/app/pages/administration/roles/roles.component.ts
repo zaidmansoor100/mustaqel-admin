@@ -25,6 +25,7 @@ import { PermissionDirective } from '@/directives/permission.directive';
 import { PermissionService } from '@/services/permission.service';
 import { Permission } from '@/enums/permission.enum';
 import { Subject, takeUntil } from 'rxjs';
+import { PermissionSyncService } from '@/services/permission-sync.service';
 
 @Component({
     selector: 'app-roles',
@@ -109,7 +110,8 @@ export class RolesComponent implements OnInit, OnDestroy {
         private activatedRoute: ActivatedRoute,
         private http: HttpClient,
         private fb: FormBuilder,
-        private permissionService: PermissionService
+        private permissionService: PermissionService,
+        private permissionSyncService: PermissionSyncService,
     ) {}
 
     ngOnInit() {
@@ -390,6 +392,7 @@ export class RolesComponent implements OnInit, OnDestroy {
                     .then(() => {
                         this.roles = this.roles.filter((val) => !this.selectedRoles.includes(val));
                         this.selectedRoles = [];
+                        this.permissionSyncService.triggerManualRefresh();
                         this.messageService.add({
                             severity: 'success',
                             summary: 'Successful',
@@ -421,6 +424,7 @@ export class RolesComponent implements OnInit, OnDestroy {
                     .subscribe({
                         next: () => {
                             this.roles = this.roles.filter((val) => val.id !== role.id);
+                            this.permissionSyncService.triggerManualRefresh();
                             this.messageService.add({
                                 severity: 'success',
                                 summary: 'Successful',
@@ -472,6 +476,7 @@ export class RolesComponent implements OnInit, OnDestroy {
                         if (index !== -1) {
                             this.roles[index] = { ...this.roles[index], ...res };
                         }
+                        this.permissionSyncService.triggerManualRefresh();
                         this.messageService.add({
                             severity: 'success',
                             summary: 'Successful',

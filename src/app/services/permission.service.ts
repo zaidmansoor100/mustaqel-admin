@@ -74,7 +74,7 @@ export class PermissionService {
             return true;
         }
         const userPermissions = this.authService.getPermissions();
-        return permissions.some(p => userPermissions.includes(p));
+        return permissions.some((p) => userPermissions.includes(p));
     }
 
     /**
@@ -85,7 +85,14 @@ export class PermissionService {
             return true;
         }
         const userPermissions = this.authService.getPermissions();
-        return permissions.every(p => userPermissions.includes(p));
+        return permissions.every((p) => userPermissions.includes(p));
+    }
+
+    /**
+     * Get all permissions as strings
+     */
+    getPermissions(): string[] {
+        return this.authService.getPermissions();
     }
 
     /**

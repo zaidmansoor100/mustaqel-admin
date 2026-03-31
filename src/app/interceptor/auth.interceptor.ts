@@ -1,6 +1,8 @@
+// src/app/interceptor/auth.interceptor.ts (Updated)
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { TokenService } from '../services/token.service';
 import { AuthService } from '../services/http/auth.service';
 import * as CryptoJS from 'crypto-js';
 import { catchError, throwError } from 'rxjs';
@@ -8,21 +10,18 @@ import { CookieService } from 'ngx-cookie-service';
 import { AppVars } from '@/vars/vars.const';
 
 export const authInterceptorFn: HttpInterceptorFn = (req, next) => {
-    const cookie = inject(CookieService);
-    const auth = inject(AuthService);
+    const tokenService = inject(TokenService);
     const router = inject(Router);
     const appVars = AppVars;
 
     const headersConfig: Record<string, string> = {};
 
-    const token = cookie.get(appVars.env['auth_cookie'])
-    // console.log('token', token);
+    const token = tokenService.getToken();
     
     if (token) {
         headersConfig['Authorization'] = `Bearer ${token}`;
     }
 
-    // Detect JSON payload (skip FormData/files)
     const isJson = req.body && !(req.body instanceof FormData);
 
     if (isJson) {
@@ -35,16 +34,18 @@ export const authInterceptorFn: HttpInterceptorFn = (req, next) => {
 
     const authReq = req.clone({
         setHeaders: headersConfig,
-        withCredentials: true // MUST for Sanctum SPA auth
+        withCredentials: true
     });
-
-    // console.log('[AuthInterceptor] Outgoing request:', authReq);
 
     return next(authReq).pipe(
         catchError((error: HttpErrorResponse) => {
             if (error.status === 401 || error.status === 403) {
-                auth.logout();
-                router.navigate(['/auth/login']);
+                // Use setTimeout to avoid circular dependency
+                setTimeout(() => {
+                    const authService = inject(AuthService);
+                    authService.logout().subscribe();
+                    router.navigate(['/auth/login']);
+                }, 0);
             }
             return throwError(() => error);
         })

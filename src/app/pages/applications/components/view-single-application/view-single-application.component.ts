@@ -22,6 +22,10 @@ import { ConfirmDialog } from 'primeng/confirmdialog';
 import { AccordionModule } from 'primeng/accordion';
 import { BadgeModule } from 'primeng/badge';
 
+// Add these imports at the top
+import { PermissionDirective } from '@/directives/permission.directive';
+import { PermissionService } from '@/services/permission.service';
+import { Permission } from '@/enums/permission.enum';
 
 // Interfaces for type safety
 interface qcCheck {
@@ -70,13 +74,29 @@ interface qcProgress {
 type status = 'Correct' | 'Wrong' | 'NeedCorrection' | 'approved' | 'rejected';
 type QCButton = 'START_QC' | 'APPROVED_QC' | 'APPROVED' | 'REJECT' | 'ON_HOLD';
 
-
 @Component({
     selector: 'app-view-single-application',
     standalone: true,
-    imports: [ImageModule, CommonModule, RouterModule, CardModule, ButtonModule, ConfirmDialog, TagModule, DialogModule,
-        TooltipModule, SelectModule, TextareaModule, FormsModule, PdfViewerModule, Divider, ReactiveFormsModule,
-        AccordionModule, BadgeModule],
+    imports: [
+        ImageModule,
+        CommonModule,
+        RouterModule,
+        CardModule,
+        ButtonModule,
+        ConfirmDialog,
+        TagModule,
+        DialogModule,
+        TooltipModule,
+        SelectModule,
+        TextareaModule,
+        FormsModule,
+        PdfViewerModule,
+        Divider,
+        ReactiveFormsModule,
+        AccordionModule,
+        BadgeModule,
+        PermissionDirective
+    ],
     templateUrl: './view-single-application.component.html',
     styleUrls: ['./view-single-application.component.scss'],
     providers: [ConfirmationService, MessageService]
@@ -88,7 +108,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     request: any = null;
     stages: ApplicationStage[] = [];
     activeSection = 'personal';
-    qcCorrectionsMap: Record<string, { status: string; comment: string | null; corrections?: any[], updated: boolean, fieldOldValue?: string }> = {};
+    qcCorrectionsMap: Record<string, { status: string; comment: string | null; corrections?: any[]; updated: boolean; fieldOldValue?: string }> = {};
     identificationFields: FieldData[] = [];
     qatarResidentFields: FieldData[] = [];
 
@@ -157,7 +177,17 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     // FormGroup
     formComment!: FormGroup;
 
+    // Permission flags for UI
+    canEdit$: any;
+    canStartQC$: any;
+    canApproveQC$: any;
+    canViewQC$: any;
+
+    // Make Permission enum available in template
+    Permission = Permission;
+
     constructor(
+        private permissionService: PermissionService,
         private activatedRoute: ActivatedRoute,
         private http: HttpClient,
         private messageService: MessageService,
@@ -166,25 +196,43 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         private confirmationService: ConfirmationService,
         private fb: FormBuilder,
         @Inject(PLATFORM_ID) private platformId: Object
-    ) { }
+    ) {}
 
     ngOnInit(): void {
+        // Permission flags for UI
+        this.canEdit$ = this.permissionService.hasPermission(this.getEditPermission());
+        this.canStartQC$ = this.permissionService.hasPermission(Permission.REQUEST_QUALITY_CHECKS);
+        this.canApproveQC$ = this.permissionService.hasPermission(Permission.APPROVE_QUALITY_CHECKS);
+        this.canViewQC$ = this.permissionService.hasPermission(Permission.VIEW_QUALITY_CHECKS);
         if (isPlatformBrowser(this.platformId)) {
             this.initializeComponent();
         }
-        this.prepareQvcCorrections()
+        this.prepareQvcCorrections();
         this.buildCommentForm();
 
         this.statuses = Object.entries(this.request?.status).map(([key, value]: any) => ({
             key,
-            ...((Array.isArray(value) && value.length > 0) ? value[0] : {})
+            ...(Array.isArray(value) && value.length > 0 ? value[0] : {})
         }));
     }
 
-    getSeverity(
-        param: string | null | undefined
-    ): 'info' | 'success' | 'warn' | 'danger' | 'secondary' | 'contrast' {
+    getEditPermission(): string {
+        const catSlug = this.request?.category?.slug;
+        switch (catSlug) {
+            case 'tal':
+                return Permission.EDIT_TALENT;
+            case 'ent':
+                return Permission.EDIT_ENTREPRENEUR;
+            case 'inv':
+                return Permission.EDIT_INVESTOR;
+            case 'exe':
+                return Permission.EDIT_EXECUTIVE;
+            default:
+                return Permission.EDIT_TALENT;
+        }
+    }
 
+    getSeverity(param: string | null | undefined): 'info' | 'success' | 'warn' | 'danger' | 'secondary' | 'contrast' {
         const status = param?.toLowerCase();
 
         switch (status) {
@@ -323,8 +371,8 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
             { label: 'Activity', value: identificationData?.activity?.name || null, fieldPath: 'activity.name' },
             { label: 'Sub Activity', value: identificationData?.subActivity?.name || null, fieldPath: 'subActivity.name' },
             { label: 'Entity', value: identificationData?.entity?.name || null, fieldPath: 'entity.name' },
-            { label: 'Incubator', value: identificationData?.incubator?.name || null, fieldPath: 'incubator.name' },
-        ].filter(item => item.value !== null);
+            { label: 'Incubator', value: identificationData?.incubator?.name || null, fieldPath: 'incubator.name' }
+        ].filter((item) => item.value !== null);
     }
 
     private buildQatarResidentFields(personalInfo: any): FieldData[] {
@@ -335,7 +383,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
             { label: 'QID Number', value: personalInfo.qidNumber || null, fieldPath: 'personalInfo.applicantInfo.qidNumber' },
             { label: 'Work Permit', value: personalInfo.workPermit || null, fieldPath: 'personalInfo.applicantInfo.workPermit' },
             { label: 'Maintain Work Permit', value: personalInfo.maintainWorkPermit || null, fieldPath: 'personalInfo.applicantInfo.maintainWorkPermit' }
-        ].filter(field => field.value !== null);;
+        ].filter((field) => field.value !== null);
     }
 
     private buildPersonalFields(personalInfo: any): FieldData[] {
@@ -423,7 +471,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
                 { label: 'Monthly Salary', value: employmentInfo.monthlySalary || null, fieldPath: 'employmentAndEducation.employmentDetails.monthlySalary' },
                 { label: 'Other Company Classification', value: employmentInfo.otherCompanyClassification || null, fieldPath: 'employmentAndEducation.employmentDetails.otherCompanyClassification' },
                 { label: 'Other Current Job Title', value: employmentInfo.otherCurrentJobTitle || null, fieldPath: 'employmentAndEducation.employmentDetails.otherCurrentJobTitle' },
-                { label: 'Company Classification', value: employmentInfo.companyClassification || null, fieldPath: 'employmentAndEducation.employmentDetails.companyClassification' },
+                { label: 'Company Classification', value: employmentInfo.companyClassification || null, fieldPath: 'employmentAndEducation.employmentDetails.companyClassification' }
             ]
         };
 
@@ -532,9 +580,9 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     // qc Methods
     get showqcButton(): boolean {
         const userRole = 'admin';
-        const hasqc = this.request?.qualityCheck === null
-        const status = this.request?.qualityCheck?.status == "Resubmitted"
-        return userRole === 'admin' && hasqc || status && !this.isqcInProgress;
+        const hasqc = this.request?.qualityCheck === null;
+        const status = this.request?.qualityCheck?.status == 'Resubmitted';
+        return (userRole === 'admin' && hasqc) || (status && !this.isqcInProgress);
     }
 
     startqc(): void {
@@ -551,7 +599,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     async approvedQc() {
         try {
             const payload = {
-                requestId: this.request.id,
+                requestId: this.request.id
             };
 
             const response: any = await this.reqService.approveQc(payload).pipe(takeUntil(this.destroy$)).toPromise();
@@ -764,7 +812,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     }
 
     private resetAllqcChecks(): void {
-        const allFields = [...this.personalFields, ...this.passportFields, ...this.contactFields, ...this.qatarResidentFields, ...this.employmentFields,];
+        const allFields = [...this.personalFields, ...this.passportFields, ...this.contactFields, ...this.qatarResidentFields, ...this.employmentFields];
 
         allFields.forEach((field) => {
             delete field.status;
@@ -1443,17 +1491,16 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
         if (!status) return 'secondary';
 
         const statusMap: { [key: string]: string } = {
-            'approved': 'success',
+            approved: 'success',
             'qc approved': 'success',
-            'resubmitted': 'warning',
-            'pending': 'warning',
-            'draft': 'info',
-            'rejected': 'danger'
+            resubmitted: 'warning',
+            pending: 'warning',
+            draft: 'info',
+            rejected: 'danger'
         };
 
         return statusMap[status.toLowerCase()] || 'secondary';
     }
-
 
     // Helper method for qc status severity
     getqcStatusSeverity(status: string): string {
@@ -1473,16 +1520,14 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
 
         // Array
         if (Array.isArray(value)) {
-            return value.map(v => this.formatFieldValue(v)).join(', ');
+            return value.map((v) => this.formatFieldValue(v)).join(', ');
         }
 
         // Object
         if (typeof value === 'object') {
             return Object.entries(value)
                 .map(([key, val]) => {
-                    const label = key
-                        .replace(/([A-Z])/g, ' $1')
-                        .replace(/^./, c => c.toUpperCase());
+                    const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
 
                     return `${label}: ${this.formatFieldValue(val)}`;
                 })
@@ -1494,16 +1539,15 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
     }
 
     private qcButtonVisibilityMap: Record<string, QCButton[]> = {
-        'null': ['START_QC'],
+        null: ['START_QC'],
 
-        'Resubmitted': ['APPROVED_QC', 'START_QC'],
+        Resubmitted: ['APPROVED_QC', 'START_QC'],
 
         'Action Required': []
     };
 
     isButtonVisible(button: QCButton): boolean {
-
-        const jusourStatus =  this.request?.status?.jusour?.[0]?.status?.toLowerCase();
+        const jusourStatus = this.request?.status?.jusour?.[0]?.status?.toLowerCase();
 
         if (jusourStatus === 'approved' || jusourStatus === 'rejected') {
             return false;
@@ -1515,7 +1559,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
 
         const status = this.request?.qualityCheck?.status ?? 'null';
         return this.qcButtonVisibilityMap[status]?.includes(button) ?? false;
-    } 
+    }
 
     // confirmation modal
     conformation: boolean = false;
@@ -1528,21 +1572,8 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
 
     buildCommentForm(): void {
         this.formComment = this.fb.group({
-            commentsEn: [
-                '',
-                [
-                    Validators.required,
-                    Validators.minLength(3),
-                    Validators.maxLength(200)
-                ]
-            ],
-            commentsAr: [
-                '',
-                [
-                    Validators.minLength(3),
-                    Validators.maxLength(200)
-                ]
-            ]
+            commentsEn: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(200)]],
+            commentsAr: ['', [Validators.minLength(3), Validators.maxLength(200)]]
         });
     }
 
@@ -1551,12 +1582,12 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
             console.warn('Form invalid', this.formComment);
             return;
         }
-        const id = this.request.id
+        const id = this.request.id;
         try {
             const payload = {
                 status: this.conformationText,
                 commentsEn: this.formComment.value.commentsEn,
-                commentsAr: this.formComment.value.commentsAr,
+                commentsAr: this.formComment.value.commentsAr
             };
 
             const response: any = await this.reqService.requestUpdateStatus(payload, id).pipe(takeUntil(this.destroy$)).toPromise();
@@ -1568,7 +1599,7 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
             });
             this.isqcInProgress = false;
             this.request.qualityCheck = response.data.request.qualityCheck;
-            this.conformation = false
+            this.conformation = false;
         } catch (error) {
             console.error('status:', error);
             this.messageService.add({
@@ -1590,22 +1621,22 @@ export class ViewSingleApplicationComponent implements OnInit, OnDestroy {
             rejectButtonProps: {
                 label: 'Cancel',
                 severity: 'secondary',
-                outlined: true,
+                outlined: true
             },
             acceptButtonProps: {
-                label: 'Save',
+                label: 'Save'
             },
             accept: () => {
-                this.approvedQc()
+                this.approvedQc();
             },
             reject: () => {
                 this.messageService.add({
                     severity: 'error',
                     summary: 'Rejected',
                     detail: 'You have rejected',
-                    life: 3000,
+                    life: 3000
                 });
-            },
+            }
         });
     }
 }
