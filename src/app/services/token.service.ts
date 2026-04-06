@@ -11,11 +11,28 @@ export class TokenService {
 
     getToken(): string | null {
         const appVars = AppVars;
-        return this.cookieService.get(appVars.env['auth_cookie']) || null;
+        const token = this.cookieService.get(appVars.env['auth_cookie']);
+        console.log('[TokenService] Getting token:', !!token);
+        return token || null;
+    }
+
+    setToken(token: string): void {
+        const appVars = AppVars;
+        this.cookieService.set(appVars.env['auth_cookie'], token, {
+            path: '/',
+            secure: false, // Set to true in production with HTTPS
+            sameSite: 'Lax'
+        });
+        console.log('[TokenService] Token set');
     }
 
     clearToken(): void {
         const appVars = AppVars;
-        this.cookieService.delete(appVars.env['auth_cookie']);
+        this.cookieService.delete(appVars.env['auth_cookie'], '/');
+        console.log('[TokenService] Token cleared');
+    }
+
+    hasToken(): boolean {
+        return !!this.getToken();
     }
 }

@@ -13,11 +13,8 @@ import { AuthService } from '@/services/http/auth.service';
 @Component({
     selector: 'app-root',
     standalone: true,
-    imports: [RouterModule, Toast, ProgressSpinner, NgIf, AsyncPipe],
+    imports: [RouterModule, Toast, NgIf, AsyncPipe],
     template: `
-        <div class="loader-overlay" *ngIf="showLoader$ | async">
-            <p-progressSpinner styleClass="loader-spinner" strokeWidth="4" animationDuration=".5s"></p-progressSpinner>
-        </div>
         <p-toast></p-toast>
         <router-outlet></router-outlet>
     `

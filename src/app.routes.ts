@@ -14,7 +14,7 @@ export const appRoutes: Routes = [
         resolve: {
             userResolver: UserResolver
         },
-        runGuardsAndResolvers: 'always', // 👈 This ensures resolver runs on every navigation
+        runGuardsAndResolvers: 'always',
         children: [
             {
                 path: '',
@@ -35,7 +35,7 @@ export const appRoutes: Routes = [
     },
     {
         path: 'auth',
-        canActivate: [AuthGuard],
+        // Don't use UserResolver for auth routes
         loadChildren: () => import('./app/pages/auth/auth.routes')
     },
     {

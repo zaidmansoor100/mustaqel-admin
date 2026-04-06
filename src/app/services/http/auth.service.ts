@@ -183,8 +183,9 @@ export class AuthService extends CoreService {
 
                     this.storeUserData(user, permissions);
 
+                    // Use TokenService to store token in cookie
                     if (response.data.token) {
-                        localStorage.setItem('token', response.data.token);
+                        this.tokenService.setToken(response.data.token);
                     }
 
                     this.currentUserSubject.next(user);
