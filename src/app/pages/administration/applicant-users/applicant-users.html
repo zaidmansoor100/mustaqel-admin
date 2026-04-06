@@ -81,14 +81,14 @@
             </td>
             <td>{{ user.id }}</td>
             <td>{{ user.name }}</td>
-            <td>{{ user.nameAr }}</td>
+            <td>{{ user.nameArabic }}</td>
             <td>{{ user.email }}</td>
             <td>{{ user.created_at | date:'short' }}</td>
             <td>{{ user.updated_at | date:'short' }}</td>
             <td>
                 <p-tag 
-                    [severity]="user.status === 1 ? 'success' : 'danger'"
-                    [value]="user.status === 1 ? 'ACTIVE' : 'INACTIVE'" />
+                    [severity]="user.status === 1 || user.status === 'active'? 'success' : 'danger'"
+                    [value]="user.status === 1  || user.status === 'active' ? 'ACTIVE' : 'INACTIVE'" />
             </td>
             <!-- Action buttons - only visible based on permissions -->
             <td *appPermission="[Permission.EDIT_APPLICANT_USERS, Permission.DELETE_APPLICANT_USERS]" appPermissionMode="any">
@@ -126,7 +126,7 @@
 <!-- User Dialog -->
 <p-dialog 
     [(visible)]="userDialog" 
-    [style]="{ width: '600px' }" 
+    [style]="{ width: '700px' }" 
     header="User Details" 
     [modal]="true"
     [draggable]="false"
@@ -134,57 +134,65 @@
     
     <ng-template #content>
         <div class="grid grid-cols-2 gap-6" [formGroup]="userForm">
-            <div class="mb-4 col-span-2">
-                <label for="name" class="block font-bold mb-3">Name (English) <span class="text-red-500">*</span></label>
-                <input 
-                    class="w-full" 
-                    type="text" 
-                    pInputText 
-                    id="name" 
-                    required 
-                    autofocus 
-                    formControlName="name" />
-                <small class="text-red-500 block mt-1" 
-                    *ngIf="userForm.get('name')?.invalid && userForm.get('name')?.touched">
-                    <span *ngIf="userForm.get('name')?.hasError('required')">Name is required</span>
-                    <span *ngIf="userForm.get('name')?.hasError('minlength')">Name must be at least 3 characters</span>
-                    <span *ngIf="userForm.get('name')?.hasError('maxlength')">Name cannot exceed 50 characters</span>
-                    <span *ngIf="userForm.get('name')?.hasError('alpha')">Only letters are allowed</span>
+            <!-- Personal Information Section -->
+            <div class="col-span-2 mb-2">
+                <h3 class="font-bold text-lg border-b pb-2">Personal Information</h3>
+            </div>
+
+            <div class="mb-4">
+                <label for="name" class="block font-bold mb-3">Name (English)</label>
+                <input class="w-full" type="text" pInputText id="name" required autofocus formControlName="name" />
+                <small class="text-red-500" *ngIf="userForm.get('name')?.invalid && userForm.get('name')?.touched">
+                    Name is required (3-50 characters, letters only)
                 </small>
             </div>
 
-            <div class="mb-4 col-span-2">
-                <label for="nameAr" class="block font-bold mb-3">Name (Arabic) <span class="text-red-500">*</span></label>
-                <input 
-                    class="w-full" 
-                    type="text" 
-                    pInputText 
-                    id="nameAr" 
-                    required 
-                    formControlName="nameAr"/>
-                <small class="text-red-500 block mt-1" 
-                    *ngIf="userForm.get('nameAr')?.invalid && userForm.get('nameAr')?.touched">
-                    <span *ngIf="userForm.get('nameAr')?.hasError('required')">Arabic name is required</span>
-                    <span *ngIf="userForm.get('nameAr')?.hasError('minlength')">Name must be at least 3 characters</span>
-                    <span *ngIf="userForm.get('nameAr')?.hasError('maxlength')">Name cannot exceed 255 characters</span>
-                    <span *ngIf="userForm.get('nameAr')?.hasError('arabic')">Only Arabic characters are allowed</span>
+            <div class="mb-4">
+                <label for="nameArabic" class="block font-bold mb-3">Name (Arabic)</label>
+                <input class="w-full" type="text" pInputText id="nameArabic" required formControlName="nameArabic" />
+                <small class="text-red-500"
+                    *ngIf="userForm.get('nameArabic')?.invalid && userForm.get('nameArabic')?.touched">
+                    Arabic name is required (3-255 characters)
                 </small>
             </div>
 
-            <div class="mb-4 col-span-2">
-                <label for="status" class="block font-bold mb-3">Status <span class="text-red-500">*</span></label>
+            <div class="mb-4">
+                <label for="email" class="block font-bold mb-3">Email</label>
+                <input class="w-full" type="email" pInputText id="email" required formControlName="email" />
+                <small class="text-red-500" *ngIf="userForm.get('email')?.invalid && userForm.get('email')?.touched">
+                    Valid email is required
+                </small>
+            </div>
+
+            <div class="mb-4">
+                <label for="status" class="block font-bold mb-3">Status</label>
                 <p-select 
                     appendTo="body" 
-                    [options]="status" 
+                    [options]="statusOptions" 
                     optionLabel="name" 
-                    optionValue="id" 
-                    placeholder="Select Status" 
+                    optionValue="value"
+                    placeholder="Status" 
                     class="w-full" 
-                    required  
-                    formControlName="status"/>
-                <small class="text-red-500 block mt-1" 
-                    *ngIf="userForm.get('status')?.invalid && userForm.get('status')?.touched">
-                    Status is required
+                    required 
+                    formControlName="status" />
+            </div>
+
+            <div class="mb-4" *ngIf="!currentUser?.id">
+                <label for="password" class="block font-bold mb-3">Password</label>
+                <input class="w-full" type="password" pInputText id="password" formControlName="password" />
+                <small class="text-red-500"
+                    *ngIf="userForm.get('password')?.invalid && userForm.get('password')?.touched">
+                    Password must be at least 8 characters
+                </small>
+            </div>
+
+            <div class="mb-4" *ngIf="!currentUser?.id">
+                <label for="confirmPassword" class="block font-bold mb-3">Confirm Password</label>
+                <input class="w-full" type="password" pInputText id="confirmPassword"
+                    formControlName="confirmPassword" />
+                <small class="text-red-500"
+                    *ngIf="userForm.get('confirmPassword')?.invalid && userForm.get('confirmPassword')?.touched">
+                    Passwords do not match
                 </small>
             </div>
         </div>
