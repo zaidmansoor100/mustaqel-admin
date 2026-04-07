@@ -2,7 +2,7 @@ import { Component, OnInit, ViewChild, OnDestroy } from '@angular/core';
 import { ConfirmationService, MessageService } from 'primeng/api';
 import { Table, TableModule } from 'primeng/table';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators, FormArray, AbstractControl, ValidationErrors, ValidatorFn } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { RippleModule } from 'primeng/ripple';
 import { ToastModule } from 'primeng/toast';
@@ -12,35 +12,85 @@ import { DialogModule } from 'primeng/dialog';
 import { InputIconModule } from 'primeng/inputicon';
 import { IconFieldModule } from 'primeng/iconfield';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TagModule } from 'primeng/tag';
 import { SelectModule } from 'primeng/select';
+import { InputNumberModule } from 'primeng/inputnumber';
+import { CheckboxModule } from 'primeng/checkbox';
 import { CustomValidators } from '@/common/validators/custom-validators';
 import { AdministrationService } from '@/services/administration.service';
+import { finalize, Subject, takeUntil } from 'rxjs';
 import { PermissionDirective } from '@/directives/permission.directive';
 import { PermissionService } from '@/services/permission.service';
 import { Permission } from '@/enums/permission.enum';
-import { Subject, takeUntil } from 'rxjs';
+import { AuthService } from '@/services/http/auth.service';
+import { PermissionSyncService } from '@/services/permission-sync.service';
+
+// Custom validator for password match
+export const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+    const password = control.get('password');
+    const confirmPassword = control.get('confirmPassword');
+
+    if (password && confirmPassword && password.value !== confirmPassword.value) {
+        return { passwordMismatch: true };
+    }
+    return null;
+};
+
+interface User {
+    id?: number;
+    name: string;
+    nameArabic?: string;
+    email: string;
+    status: 'active' | 'inactive';
+    levels?: UserLevel[];
+    created_at?: string;
+    updated_at?: string;
+}
+
+interface UserLevel {
+    name: string;
+    position: number;
+    role:
+        | {
+              id: number;
+              name: string;
+          }
+        | string;
+}
+
+interface Role {
+    id: number;
+    name: string;
+    approval_levels: number;
+}
+
+interface StatusOption {
+    value: string;
+    name: string;
+}
 
 @Component({
     selector: 'app-applicant-users',
     standalone: true,
     imports: [
-        ReactiveFormsModule, 
-        SelectModule, 
-        TagModule, 
-        CommonModule, 
-        FormsModule, 
-        TableModule, 
-        ButtonModule, 
-        RippleModule, 
-        ToastModule, 
-        ToolbarModule, 
-        InputTextModule, 
-        DialogModule, 
-        InputIconModule, 
-        IconFieldModule, 
+        ReactiveFormsModule,
+        SelectModule,
+        TagModule,
+        CommonModule,
+        FormsModule,
+        TableModule,
+        ButtonModule,
+        RippleModule,
+        ToastModule,
+        ToolbarModule,
+        InputTextModule,
+        DialogModule,
+        InputIconModule,
+        IconFieldModule,
         ConfirmDialogModule,
+        InputNumberModule,
+        CheckboxModule,
         PermissionDirective
     ],
     templateUrl: './applicant-users.html',
@@ -48,37 +98,62 @@ import { Subject, takeUntil } from 'rxjs';
     providers: [MessageService, ConfirmationService]
 })
 export class ApplicantUsers implements OnInit, OnDestroy {
+    // Dialog state
     userDialog: boolean = false;
     submitted: boolean = false;
-    selectedUsers: any[] = [];
-    
-    status: any = [
-        { id: 1, name: 'Active' },
-        { id: 0, name: 'Inactive' }
-    ];
 
-    @ViewChild('dt') dt!: Table;
+    // Data
+    users: User[] = [];
+    selectedUsers: User[] = [];
+    roles: Role[] = [];
+    currentUser: User = {} as User;
 
-    exportColumns!: any[];
-    cols!: any[];
-    users: any[] = [];
-    user: any = {};
+    // Form
     userForm!: FormGroup;
 
-    totalRecords = 0;
-    page = 1;
-    rows = 10;
+    // Permissions
+    private combinedPermissions: Set<string> = new Set();
 
     // Permission flags for UI
-    canCreate$: any;
-    canEdit$: any;
-    canDelete$: any;
-    canView$: any;
-    canExport$: any;
+    get canCreate$() {
+        return this.permissionService.hasPermission(Permission.CREATE_ADMIN_USERS);
+    }
+    get canEdit$() {
+        return this.permissionService.hasPermission(Permission.EDIT_ADMIN_USERS);
+    }
+    get canDelete$() {
+        return this.permissionService.hasPermission(Permission.DELETE_ADMIN_USERS);
+    }
+    get canView$() {
+        return this.permissionService.hasPermission(Permission.VIEW_ADMIN_USERS);
+    }
+    get canExport$() {
+        return this.permissionService.hasPermission(Permission.EXPORT_DATA_TALENT);
+    }
 
     // Make Permission enum available in template
     Permission = Permission;
 
+    // Options
+    statusOptions: StatusOption[] = [
+        { value: 'active', name: 'Active' },
+        { value: 'inactive', name: 'Inactive' }
+    ];
+
+    // Table configuration
+    @ViewChild('dt') dt!: Table;
+    cols: any[] = [];
+    exportColumns: any[] = [];
+
+    // Pagination
+    totalRecords: number = 0;
+    currentPage: number = 1;
+    rowsPerPage: number = 10;
+
+    // Loading states
+    loading: boolean = false;
+
+    // Cleanup
     private destroy$ = new Subject<void>();
 
     constructor(
@@ -87,22 +162,16 @@ export class ApplicantUsers implements OnInit, OnDestroy {
         private administrationService: AdministrationService,
         private activatedRoute: ActivatedRoute,
         private fb: FormBuilder,
-        private permissionService: PermissionService
-    ) {
-        this.canCreate$ = this.permissionService.hasPermission(Permission.CREATE_APPLICANT_USERS);
-        this.canEdit$ = this.permissionService.hasPermission(Permission.EDIT_APPLICANT_USERS);
-        this.canDelete$ = this.permissionService.hasPermission(Permission.DELETE_APPLICANT_USERS);
-        this.canView$ = this.permissionService.hasPermission(Permission.VIEW_APPLICANT_USERS);
-        this.canExport$ = this.permissionService.hasPermission(Permission.EXPORT_DATA_TALENT);
-    }
+        private permissionService: PermissionService,
+        private authService: AuthService,
 
-    ngOnInit() {
-        const routeData = this.activatedRoute.snapshot.data['users'];
-        this.users = routeData?.[0]?.data?.user?.data || [];
-        console.log('Initialized users:', this.users);
+        private router: Router,
+        private permissionSyncService: PermissionSyncService
+    ) {}
 
-        this.exportCSVData();
-        this.formBuild();
+    ngOnInit(): void {
+        this.initializeData();
+        this.initializeTableColumns();
     }
 
     ngOnDestroy(): void {
@@ -110,17 +179,24 @@ export class ApplicantUsers implements OnInit, OnDestroy {
         this.destroy$.complete();
     }
 
-    exportCSV() {
-        const original = this.dt.value;
-        this.dt.exportCSV();
-        this.dt.value = original;
+    // Getters
+    get levelsArray(): FormArray {
+        return this.userForm.get('levels') as FormArray;
     }
 
-    exportCSVData() {
+    // Initialization Methods
+    private initializeData(): void {
+        const usersData = this.activatedRoute.snapshot.data['users'];
+        this.users = usersData?.[0]?.data?.user?.data || [];
+        console.log('Initialized users:', this.users);
+        this.formBuild();
+    }
+
+    private initializeTableColumns(): void {
         this.cols = [
             { field: 'id', header: '#' },
-            { field: 'name', header: 'Applicant Name (English)' },
-            { field: 'nameAr', header: 'Applicant Name (Arabic)' },
+            { field: 'name', header: 'Name (English)' },
+            { field: 'nameArabic', header: 'Name (Arabic)' },
             { field: 'email', header: 'Email' },
             { field: 'created_at', header: 'Created At' },
             { field: 'updated_at', header: 'Updated At' },
@@ -133,225 +209,339 @@ export class ApplicantUsers implements OnInit, OnDestroy {
         }));
     }
 
-    onGlobalFilter(table: Table, event: Event) {
-        table.filterGlobal((event.target as HTMLInputElement).value, 'contains');
+
+
+
+    
+
+
+    // Form Methods
+    formBuild(user?: User): void {
+        this.resetCombinedPermissions();
+
+        this.userForm = this.fb.group(
+            {
+                name: [user?.name || '', this.getNameValidators()],
+                nameArabic: [user?.nameArabic || '', this.getArabicNameValidators()],
+                email: [user?.email || '', [Validators.required, Validators.email]],
+                status: [user?.status || 'active', [Validators.required]],
+                password: ['', this.getPasswordValidators(user)],
+                confirmPassword: ['', this.getConfirmPasswordValidators(user)],
+
+            },
+            { validators: user?.id ? [] : [passwordMatchValidator] }
+        );
+
     }
 
-    loadUsers(event: any) {
-        const page = event.first / event.rows + 1;
-        const perPage = event.rows;
-        
-        this.administrationService.getAllUsers('applicant', `?page=${page}&per_page=${perPage}`)
-            .pipe(takeUntil(this.destroy$))
-            .subscribe({
-                next: (res) => {
-                    this.users = res.data.user.data;
-                    this.totalRecords = res.total;
-                    this.page = res.current_page;
-                },
-                error: (error: any) => {
-                    console.log(error);
-                    this.messageService.add({
-                        severity: 'error',
-                        summary: 'Error',
-                        detail: 'Failed to load users',
-                        life: 3000
-                    });
-                }
-            });
+    private getNameValidators(): any[] {
+        return [Validators.required, Validators.maxLength(50), Validators.minLength(3), CustomValidators.alpha()];
     }
 
-    formBuild(user?: any) {
-        this.userForm = this.fb.group({
-            name: [
-                user?.name || '', 
-                [
-                    Validators.required, 
-                    Validators.maxLength(50), 
-                    Validators.minLength(3), 
-                    CustomValidators.alpha()
-                ]
-            ],
-            nameAr: [
-                user?.nameAr || '', 
-                [
-                    Validators.required, 
-                    Validators.maxLength(255), 
-                    Validators.minLength(3), 
-                    CustomValidators.arabic()
-                ]
-            ],
-            status: [user?.status || '', [Validators.required]]
-        });
+    private getArabicNameValidators(): any[] {
+        return [Validators.required, Validators.maxLength(255), Validators.minLength(3), CustomValidators.arabic()];
     }
 
-    openNew() {
+    private getPasswordValidators(user?: User): any[] {
+        return user?.id ? [] : [Validators.required, Validators.minLength(8)];
+    }
+
+    private getConfirmPasswordValidators(user?: User): any[] {
+        return user?.id ? [] : [Validators.required];
+    }
+
+    
+
+
+    
+
+
+
+    // CRUD Operations
+    openNew(): void {
+        this.resetState();
         this.formBuild();
-        this.user = {};
-        this.submitted = false;
         this.userDialog = true;
     }
 
-    editUser(user: any) {
-        console.log(user);
+    editUser(user: User): void {
+        console.log('Editing user:', user);
+        this.resetState();
         this.formBuild(user);
-        this.user = { ...user };
+        this.currentUser = { ...user };
         this.userDialog = true;
     }
 
-    deleteSelectedUsers() {
-        this.confirmationService.confirm({
-            message: 'Are you sure you want to delete the selected users?',
-            header: 'Confirm',
-            icon: 'pi pi-exclamation-triangle',
-            accept: () => {
-                const deleteRequests = this.selectedUsers.map((cat) => 
-                    this.administrationService.deleteUser('applicant', cat.id).toPromise()
-                );
-
-                Promise.all(deleteRequests)
-                    .then(() => {
-                        this.users = this.users.filter((val) => !this.selectedUsers.includes(val));
-                        this.selectedUsers = [];
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Successful',
-                            detail: 'Users Deleted',
-                            life: 3000
-                        });
-                    })
-                    .catch((error) => {
-                        console.log(error);
-                        this.messageService.add({
-                            severity: 'error',
-                            summary: 'Error',
-                            detail: 'Some deletes failed',
-                            life: 3000
-                        });
-                    });
-            }
-        });
-    }
-
-    deleteUser(user: any) {
-        this.confirmationService.confirm({
-            message: `Are you sure you want to delete ${user.name}?`,
-            header: 'Confirm',
-            icon: 'pi pi-exclamation-triangle',
-            accept: () => {
-                this.administrationService.deleteUser('applicant', user.id)
-                    .pipe(takeUntil(this.destroy$))
-                    .subscribe({
-                        next: () => {
-                            this.users = this.users.filter((val) => val.id !== user.id);
-                            this.messageService.add({
-                                severity: 'success',
-                                summary: 'Successful',
-                                detail: 'User Deleted',
-                                life: 3000
-                            });
-                        },
-                        error: (error) => {
-                            console.log(error);
-                            const errorMessage = error.error?.message || 'Failed to delete user';
-                            this.messageService.add({
-                                severity: 'error',
-                                summary: 'Error',
-                                detail: errorMessage,
-                                life: 3000
-                            });
-                        }
-                    });
-            }
-        });
-    }
-
-    saveUser() {
+    saveUser(): void {
         this.submitted = true;
-        
+
         if (this.userForm.invalid) {
             this.markFormFieldsAsTouched();
             return;
         }
 
         const formValue = this.userForm.value;
+        const requestBody = this.buildRequestBody(formValue);
 
-        const obj = {
-            name: formValue.name,
-            nameAr: formValue.nameAr,
-            status: formValue.status
-        };
-
-        if (this.user.id) {
-            // Update existing user
-            this.administrationService.updateUser('applicant', this.user.id, obj)
-                .pipe(takeUntil(this.destroy$))
-                .subscribe({
-                    next: (res) => {
-                        const index = this.users.findIndex((c) => c.id === this.user.id);
-                        if (index !== -1) {
-                            this.users[index] = res;
-                        }
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Successful',
-                            detail: 'User Updated',
-                            life: 3000
-                        });
-                        this.userDialog = false;
-                        this.user = {};
-                    },
-                    error: (error) => {
-                        console.log(error);
-                        const errorMessage = error.error?.message || 'Failed to update user';
-                        this.messageService.add({
-                            severity: 'error',
-                            summary: 'Error',
-                            detail: errorMessage,
-                            life: 3000
-                        });
-                    }
-                });
+        if (this.currentUser.id) {
+            this.updateUser(requestBody);
         } else {
-            // Create new user
-            this.administrationService.createUser('applicant', obj)
-                .pipe(takeUntil(this.destroy$))
-                .subscribe({
-                    next: (res) => {
-                        this.users.unshift(res);
-                        this.messageService.add({
-                            severity: 'success',
-                            summary: 'Successful',
-                            detail: 'User Created',
-                            life: 3000
-                        });
-                        this.userDialog = false;
-                        this.user = {};
-                        this.dt?.reset();
-                    },
-                    error: (error) => {
-                        console.log(error);
-                        const errorMessage = error.error?.message || 'Failed to create user';
-                        this.messageService.add({
-                            severity: 'error',
-                            summary: 'Error',
-                            detail: errorMessage,
-                            life: 3000
-                        });
-                    }
-                });
+            this.createUser(requestBody);
         }
     }
 
+    private buildRequestBody(formValue: any): any {
+        const requestBody: any = {
+            personalInfo: {
+                name: formValue.name,
+                nameArabic: formValue.nameArabic,
+                email: formValue.email,
+                status: formValue.status
+            },
+            level:[{
+                name: 'Applicant',
+                position: 0,
+                role: 'applicant'
+            }]
+        };
+
+        if (!this.currentUser.id) {
+            requestBody.personalInfo.password = formValue.password;
+            requestBody.personalInfo.confirmPassword = formValue.confirmPassword;
+        }
+
+        return requestBody;
+    }
+
+    private updateUser(requestBody: any): void {
+        this.administrationService
+            .updateUser('applicant', this.currentUser.id!, requestBody)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (response) => {
+                    const index = this.users.findIndex((u) => u.id === this.currentUser.id);
+                    if (index !== -1) {
+                        this.users[index] = { ...this.users[index], ...response };
+                    }
+                    this.showSuccess('User Updated Successfully');
+                    this.closeDialog();
+                },
+                error: (error) => this.handleError(error, 'Failed to update user')
+            });
+    }
+
+    private createUser(requestBody: any): void {
+        this.administrationService
+            .createUser('applicant', requestBody)
+            .pipe(takeUntil(this.destroy$))
+            .subscribe({
+                next: (response) => {
+                    this.users.unshift(response);
+                    this.showSuccess('User Created Successfully');
+                    this.closeDialog();
+                    this.dt?.reset();
+                },
+                error: (error) => this.handleError(error, 'Failed to create user')
+            });
+    }
+
+    deleteUser(user: User): void {
+        this.confirmationService.confirm({
+            message: `Are you sure you want to delete ${user.name}?`,
+            header: 'Confirm Deletion',
+            icon: 'pi pi-exclamation-triangle',
+            accept: () => {
+                this.administrationService
+                    .deleteUser('jusour', user.id!)
+                    .pipe(takeUntil(this.destroy$))
+                    .subscribe({
+                        next: () => {
+                            this.users = this.users.filter((u) => u.id !== user.id);
+                            const currentLoggedInUser = this.authService.getCurrentUser();
+                            if (currentLoggedInUser && currentLoggedInUser.id === user.id) {
+                                // Current user deleted - logout
+                                this.authService.logout().subscribe(() => {
+                                    this.router.navigate(['/auth/login']);
+                                    this.showSuccess('Your account has been deleted. Logging out...');
+                                });
+                            } else {
+                                // Other user deleted - just refresh permissions
+                                this.permissionSyncService.triggerManualRefresh();
+                                this.showSuccess('User Deleted Successfully');
+                            }
+                            this.showSuccess('User Deleted Successfully');
+                        },
+                        error: (error) => this.handleError(error, 'Failed to delete user')
+                    });
+            }
+        });
+    }
+
+    deleteSelectedUsers(): void {
+        this.confirmationService.confirm({
+            message: 'Are you sure you want to delete the selected users?',
+            header: 'Confirm Deletion',
+            icon: 'pi pi-exclamation-triangle',
+            accept: () => {
+                const deleteRequests = this.selectedUsers.map((user) => this.administrationService.deleteUser('jusour', user.id!).toPromise());
+
+                Promise.all(deleteRequests)
+                    .then(() => {
+                        const currentLoggedInUser = this.authService.getCurrentUser();
+                        const isCurrentUserDeleted = this.selectedUsers.some((user) => currentLoggedInUser && user.id === currentLoggedInUser.id);
+
+                        if (isCurrentUserDeleted) {
+                            this.authService.logout().subscribe(() => {
+                                this.router.navigate(['/auth/login']);
+                                this.showSuccess('Your account has been deleted. Logging out...');
+                            });
+                        } else {
+                            this.users = this.users.filter((user) => !this.selectedUsers.includes(user));
+                            this.selectedUsers = [];
+                            this.permissionSyncService.triggerManualRefresh();
+                            this.showSuccess('Users Deleted Successfully');
+                        }
+                    })
+                    .catch(() => this.showError('Some deletes failed'));
+            }
+        });
+    }
+
+    // Table Methods
+    loadUsers(event: any): void {
+        this.loading = true;
+        const page = event.first / event.rows + 1;
+        const perPage = event.rows;
+
+        this.administrationService
+            .getAllUsers('applicant', `?page=${page}&per_page=${perPage}`)
+            .pipe(
+                takeUntil(this.destroy$),
+                finalize(() => (this.loading = false))
+            )
+            .subscribe({
+                next: (response) => {
+                    this.users = response.data.user.data;
+                    this.totalRecords = response.total;
+                    this.currentPage = response.current_page;
+                },
+                error: (error) => {
+                    console.error('Failed to load users:', error);
+                    this.showError('Failed to load users');
+                }
+            });
+    }
+
+    exportCSV(): void {
+        const originalData = this.dt.value;
+        this.dt.exportCSV();
+        this.dt.value = originalData;
+    }
+
+    onGlobalFilter(table: Table, event: Event): void {
+        const input = event.target as HTMLInputElement;
+        table.filterGlobal(input.value, 'contains');
+    }
+
+    // UI Helpers
     private markFormFieldsAsTouched(): void {
         Object.keys(this.userForm.controls).forEach((key) => {
             this.userForm.get(key)?.markAsTouched();
         });
     }
 
-    hideDialog() {
-        this.userDialog = false;
+    private resetState(): void {
         this.submitted = false;
+        this.currentUser = {} as User;
+        this.resetCombinedPermissions();
+    }
+
+    private resetCombinedPermissions(): void {
+        this.combinedPermissions.clear();
+    }
+
+    private closeDialog(): void {
+        this.userDialog = false;
         this.userForm?.reset();
+        this.resetCombinedPermissions();
+    }
+
+    hideDialog(): void {
+        this.closeDialog();
+    }
+
+    // Notification Helpers
+    private showSuccess(message: string): void {
+        this.messageService.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: message,
+            life: 3000
+        });
+    }
+
+    private showError(message: string): void {
+        this.messageService.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: message,
+            life: 3000
+        });
+    }
+
+    private extractErrorMessage(error: any): string {
+        let message = 'An error occurred';
+
+        if (!error) return message;
+
+        if (error.error) {
+            if (error.error.errors?.errors) {
+                const nestedErrors = error.error.errors.errors;
+                const allErrors: string[] = [];
+
+                Object.values(nestedErrors).forEach((err: any) => {
+                    if (Array.isArray(err)) {
+                        allErrors.push(...err);
+                    } else if (typeof err === 'string') {
+                        allErrors.push(err);
+                    }
+                });
+
+                if (allErrors.length > 0) {
+                    return allErrors.join(', ');
+                }
+            }
+
+            if (error.error.errors) {
+                const errorObj = error.error.errors;
+
+                if (typeof errorObj === 'object' && !Array.isArray(errorObj)) {
+                    const allErrors = Object.values(errorObj).flat();
+                    if (allErrors.length > 0) {
+                        return allErrors.join(', ');
+                    }
+                }
+
+                if (typeof errorObj === 'string') {
+                    return errorObj;
+                }
+            }
+
+            if (error.error.message) {
+                return error.error.message;
+            }
+        }
+
+        if (error.message) {
+            return error.message;
+        }
+
+        return message;
+    }
+
+    private handleError(error: any, defaultMessage: string): void {
+        console.error(defaultMessage, error);
+        const errorMessage = this.extractErrorMessage(error) || defaultMessage;
+        this.showError(errorMessage);
     }
 }
