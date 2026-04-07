@@ -68,7 +68,7 @@ export class RolesComponent implements OnInit, OnDestroy {
     roleTypes: any = [
         { name: 'Jusour', value: 'jusour' },
         { name: 'Applicant', value: 'system' },
-        { name: 'Entities', value: 'entities' },
+        { name: 'Entities', value: 'entity' },
         { name: 'MOCI', value: 'moci' },
         { name: 'MOL', value: 'mol' },
         { name: 'VFS', value: 'vfs' },

@@ -21,7 +21,10 @@ import { Subject, takeUntil } from 'rxjs';
 import { PermissionDirective } from '@/directives/permission.directive';
 import { PermissionService } from '@/services/permission.service';
 import { Permission } from '@/enums/permission.enum';
-
+interface Column {
+    field: string;
+    header: string;
+}
 @Component({
     selector: 'applications-index',
     templateUrl: './all-applications.component.html',
@@ -55,8 +58,10 @@ export class AllApplicationsComponent implements OnInit, OnDestroy {
     selectedRequests: any[] = [];
     totalRecords = 0;
     private destroy$ = new Subject<void>();
+    selectedColumns!: Column[];
 
-    cols = [
+
+    cols: Column[] = [
         { field: 'requestId', header: 'Request No' },
         { field: 'name', header: 'Applicant Name' },
         { field: 'categoryName', header: 'Category' },
@@ -64,8 +69,15 @@ export class AllApplicationsComponent implements OnInit, OnDestroy {
         { field: 'activityName', header: 'Activity' },
         { field: 'createdDate', header: 'Created Date' },
         { field: 'status', header: 'Application Status' },
-        { field: 'jStatus', header: 'Jusour Status' }
+        { field: 'jStatus', header: 'Jusour Status' },
+        { field: 'entity', header: 'Entity Status' },
+        { field: 'hayya', header: 'Hayya Status' },
+        { field: 'moci', header: 'MOCI Status' },
+        { field: 'mol', header: 'MOL Status' },
+        { field: 'vfs', header: 'vfs Status' },
     ];
+
+
 
     // Dialog visibility & form fields
     statusDialogVisible: boolean = false;
@@ -103,7 +115,7 @@ export class AllApplicationsComponent implements OnInit, OnDestroy {
         private route: ActivatedRoute,
         private fb: FormBuilder,
         private permissionService: PermissionService
-    ) {}
+    ) { }
 
     ngOnInit() {
         this.canCreate$ = this.permissionService.hasPermission(this.getCreatePermission());
@@ -114,6 +126,7 @@ export class AllApplicationsComponent implements OnInit, OnDestroy {
         this.canUpdateStatus$ = this.permissionService.hasPermission(this.getUpdateStatusPermission());
         this.loadRequests({ first: 0, rows: 10 });
         this.buildCommentForm();
+        this.initializeColumns();
     }
 
     ngOnDestroy(): void {
@@ -330,5 +343,58 @@ export class AllApplicationsComponent implements OnInit, OnDestroy {
                 detail: 'Failed to update status. Please try again.'
             });
         }
+    }
+
+    getCellValue(row: any, field: string) {
+        switch (field) {
+            case 'requestId': return row.reqReferenceNumber || 'Assign after submission';
+            case 'name': return row.nameEn || 'N/A';
+            case 'categoryName': return row?.category?.name || 'N/A';
+            case 'sectorName': return row?.sector?.name || 'N/A';
+            case 'activityName': return row?.activity?.name || 'N/A';
+            case 'createdDate': return row.created_at ? new Date(row.created_at).toLocaleString() : 'N/A';
+            case 'status': return row.statuses?.application?.status || 'N/A';
+            case 'jStatus': return row.statuses?.jusour?.status || 'N/A';
+            case 'entity': return row.statuses?.entity?.status || 'N/A';
+            case 'hayya': return row.statuses?.hayya?.status || 'N/A';
+            case 'moci': return row.statuses?.moci?.status || 'N/A';
+            case 'mol': return row.statuses?.mol?.status || 'N/A';
+            case 'vfs': return row.statuses?.vfs?.status || 'N/A';
+            default: return row[field] || 'N/A';
+        }
+    }
+
+    initializeColumns() {
+        this.selectedColumns = this.cols.filter(col => {
+            const permission = this.getStatusPermission(col.field);
+
+            // No permission required → show column
+            if (!permission) return true;
+
+            // Use your service (SYNC)
+            return this.permissionService.hasPermissionSync(permission);
+        });
+
+        this.cols = this.cols.filter(col => {
+            const permission = this.getStatusPermission(col.field);
+            return !permission || this.permissionService.hasPermissionSync(permission);
+        });
+
+        this.selectedColumns = [...this.cols];
+    }
+
+
+    statusPermissionMap: Record<string, string> = {
+        status: Permission.VIEW_APPLICATION_STATUSES,
+        jStatus: Permission.VIEW_JUSOUR_STATUSES,
+        entity: Permission.VIEW_ENTITY_STATUSES,
+        hayya: Permission.VIEW_HAYYA_STATUSES,
+        moci: Permission.VIEW_MOCI_STATUSES,
+        mol: Permission.VIEW_MOL_STATUSES,
+        vfs: Permission.VIEW_VFS_STATUSES
+    };
+
+    getStatusPermission(field: string): string {
+        return this.statusPermissionMap[field] || '';
     }
 }

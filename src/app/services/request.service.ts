@@ -124,7 +124,7 @@ export class RequestService extends CoreService {
     }
 
     requestUpdateStatus(params: any, id: number): Observable<any> {
-        return this.put(`admin/requests/${id}/update-status`, params);
+        return this.put(`user/requests/${id}/update-status`, params);
     }
 
 

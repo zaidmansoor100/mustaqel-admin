@@ -19,9 +19,10 @@
 
 <!-- Requests Table -->
 <p-table #dt [value]="requests" [lazy]="true" [paginator]="true" [rows]="10" [totalRecords]="totalRecords"
-    (onLazyLoad)="loadRequests($event)" [globalFilterFields]="['requestId', 'applicantName', 'status']"
-    [(selection)]="selectedRequests" dataKey="id" [rowHover]="true"
-    currentPageReportTemplate="Showing {first} to {last} of {totalRecords}" [rowsPerPageOptions]="[10, 20, 30]">
+    [columns]="selectedColumns" (onLazyLoad)="loadRequests($event)"
+    [globalFilterFields]="['requestId', 'applicantName', 'status']" [(selection)]="selectedRequests" dataKey="id"
+    [rowHover]="true" currentPageReportTemplate="Showing {first} to {last} of {totalRecords}"
+    [rowsPerPageOptions]="[10, 20, 30]">
 
     <ng-template #caption>
         <div class="flex items-center justify-between">
@@ -29,49 +30,44 @@
                 {{ 'Manage ' + (catSlug == 'tal' ? 'Talent' : catSlug == 'ent' ? 'Entrepreneur' : catSlug == 'inv' ?
                 'Investor' : 'Executive') + ' Requests' }}
             </h5>
-            <p-iconfield>
-                <p-inputicon styleClass="pi pi-search"></p-inputicon>
-                <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search..." />
-            </p-iconfield>
+            <div class="flex gap-2">
+                <p-iconfield>
+                    <p-inputicon styleClass="pi pi-search"></p-inputicon>
+                    <input pInputText type="text" (input)="onGlobalFilter(dt, $event)" placeholder="Search..." />
+                </p-iconfield>
+                <p-multiselect display="chip" [options]="cols" [(ngModel)]="selectedColumns" optionLabel="header"
+                    selectedItemsLabel="{0} columns selected" [style]="{ 'min-width': '200px' }"
+                    placeholder="Choose Columns" />
+            </div>
         </div>
+
     </ng-template>
 
-    <ng-template #header>
+    <ng-template #header let-columns="columns">
         <tr>
-            <!-- Checkbox column - only visible if user has DELETE permission -->
             <th *appPermission="getDeletePermission()">
                 <p-tableHeaderCheckbox />
             </th>
-            <th *ngFor="let col of cols" [pSortableColumn]="col.field">
+            <th *ngFor="let col of selectedColumns" [pSortableColumn]="col.field">
                 {{ col.header }}
             </th>
-            <!-- Actions column - only visible if user has VIEW, EDIT, or DELETE permission -->
             <th *appPermission="[getViewPermission(), getEditPermission(), getDeletePermission()]"
-                appPermissionMode="any">Actions</th>
+                appPermissionMode="any">
+                Actions
+            </th>
         </tr>
     </ng-template>
 
-    <ng-template #body let-request>
+    <ng-template #body let-request let-columns="columns">
         <tr>
-            <!-- Checkbox - only visible if user has DELETE permission -->
             <td *appPermission="getDeletePermission()">
                 <p-tableCheckbox [value]="request"></p-tableCheckbox>
             </td>
-            <td>{{ request.reqReferenceNumber || 'Assign after submission' }}</td>
-            <td>{{ request.nameEn || 'N/A'}}</td>
-            <td>{{ request?.category?.name || 'N/A' }}</td>
-            <td>{{ request?.sector?.name || 'N/A'}}</td>
-            <td>{{ request?.activity?.name || 'N/A' }}</td>
-            <td>{{ request.created_at | date:'short' }}</td>
-            <td>
-                <p-tag [value]="request.statuses?.application?.status || 'N/A'"
-                    [severity]="getSeverity(request.statuses?.application?.status)"></p-tag>
-            </td>
-            <td>
-                <p-tag [value]="request.statuses?.jusour?.status || 'N/A'"
-                    [severity]="getSeverity(request.statuses?.jusour?.status)"></p-tag>
-            </td>
 
+            <td *ngFor="let col of selectedColumns">
+                <!-- Access nested objects safely -->
+                {{ getCellValue(request, col.field) }}
+            </td>
             <!-- Action buttons - only visible based on permissions -->
             <td style="white-space: nowrap;"
                 *appPermission="[getViewPermission(), getEditPermission(), getDeletePermission()]"
@@ -87,7 +83,6 @@
                 <!-- Edit/Update Status button - only visible if user has EDIT/APPROVE permission -->
                 <ng-container *appPermission="getUpdateStatusPermission()">
                     <p-button icon="pi pi-pencil" class="mr-2"
-                        *ngIf="request.statuses?.jusour?.status.toLowerCase() !== 'approved' && request.statuses?.jusour?.status.toLowerCase() !== 'rejected'"
                         [rounded]="true" [outlined]="true" (click)="openStatusDialog(request)" />
                 </ng-container>
 

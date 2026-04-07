@@ -268,7 +268,7 @@ export class EntityUsers implements OnInit, OnDestroy {
             { field: 'name', header: 'Name (English)' },
             { field: 'nameArabic', header: 'Name (Arabic)' },
             { field: 'email', header: 'Email' },
-            { field: 'entities_count', header: 'Entities' },
+            { field: 'entities_count', header: 'Entities Count' },
             { field: 'created_at', header: 'Created At' },
             { field: 'updated_at', header: 'Updated At' },
             { field: 'status', header: 'Status' }
